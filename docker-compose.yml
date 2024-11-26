@@ -1,0 +1,30 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: allstars-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - wiki-network
+    restart: always
+
+  wiki:
+    build: .
+    container_name: allstars-wiki-minimal
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+    networks:
+      - wiki-network
+    restart: always
+
+networks:
+  wiki-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
