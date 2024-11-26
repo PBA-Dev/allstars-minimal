@@ -33,24 +33,6 @@ body {
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.logo img {
-    height: 60px;
-}
-
-.title h1 {
-    font-size: 2.5em;
-    margin: 0;
-}
-
-.search-container {
-    display: flex;
-    gap: 10px;
-    align-items: center;
 }
 
 .wiki-content {
@@ -85,70 +67,6 @@ body {
     border-radius: 4px;
 }
 
-.article h2 {
-    margin-top: 0;
-    color: var(--text-color);
-}
-
-.article-meta {
-    color: #666;
-    font-size: 0.9em;
-    margin-bottom: 10px;
-}
-
-.create-form {
-    margin-bottom: 30px;
-}
-
-input, textarea {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-}
-
-button {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-button:hover {
-    opacity: 0.9;
-}
-
-.quick-links {
-    margin-top: 20px;
-}
-
-.quick-links ul {
-    list-style: none;
-    padding: 0;
-}
-
-.quick-links li {
-    margin-bottom: 10px;
-}
-
-.quick-links a {
-    color: var(--primary-color);
-    text-decoration: none;
-}
-
-.quick-links a:hover {
-    text-decoration: underline;
-}
-
-.colored-title span:nth-child(1) { color: #ff0606; }
-.colored-title span:nth-child(2) { color: #f27326; }
-.colored-title span:nth-child(3) { color: #fcb11d; }
-.colored-title span:nth-child(4) { color: #06a454; }
-.colored-title span:nth-child(5) { color: #06bafd; }
-
 #editor-container {
     height: 300px;
     margin-bottom: 20px;
@@ -159,23 +77,8 @@ button:hover {
     font-family: Arial, sans-serif;
 }
 
-.article-content {
-    margin-top: 15px;
-}
-
-.article-content img {
-    max-width: 100%;
-    height: auto;
-}
-
-.article-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-}
-
-.article-content table td,
-.article-content table th {
-    border: 1px solid #ddd;
-    padding: 8px;
-}
+.colored-title span:nth-child(1) { color: #ff0606; }
+.colored-title span:nth-child(2) { color: #f27326; }
+.colored-title span:nth-child(3) { color: #fcb11d; }
+.colored-title span:nth-child(4) { color: #06a454; }
+.colored-title span:nth-child(5) { color: #06bafd; }

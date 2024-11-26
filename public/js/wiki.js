@@ -42,15 +42,13 @@ function loadArticles() {
 }
 
 function loadRandomArticle() {
-    fetch('/api/articles')
+    fetch('/api/random-article')
         .then(response => response.json())
-        .then(articles => {
-            if (articles.length === 0) {
+        .then(article => {
+            if (!article) {
                 alert('Keine Artikel verfügbar');
                 return;
             }
-            const randomIndex = Math.floor(Math.random() * articles.length);
-            const article = articles[randomIndex];
             const articlesDiv = document.getElementById('articles');
             const date = new Date(article.createdAt).toLocaleDateString('de-DE');
             articlesDiv.innerHTML = `
