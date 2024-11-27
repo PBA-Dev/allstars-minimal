@@ -283,6 +283,60 @@ function displayArticles(articles) {
     });
 }
 
+// Search functionality
+function searchArticles() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (!searchTerm.trim()) {
+        loadArticles();
+        return;
+    }
+
+    fetch('/api/articles')
+        .then(response => response.json())
+        .then(articles => {
+            const filteredArticles = articles.filter(article => {
+                const title = article.title.toLowerCase();
+                const content = article.content.toLowerCase();
+                const author = article.author.toLowerCase();
+                
+                return title.includes(searchTerm) || 
+                       content.includes(searchTerm) ||
+                       author.includes(searchTerm);
+            });
+            
+            displayArticles(filteredArticles);
+            
+            // Update UI to show search results
+            const articlesContainer = document.getElementById('articles');
+            if (filteredArticles.length === 0) {
+                articlesContainer.innerHTML = `
+                    <div class="no-results">
+                        <p>Keine Ergebnisse für "${searchTerm}" gefunden.</p>
+                        <button onclick="loadArticles()" class="btn">
+                            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
+                        </button>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error searching articles:', error);
+            alert('Fehler bei der Suche. Bitte versuchen Sie es erneut.');
+        });
+}
+
+// Add search on enter key
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchArticles();
+            }
+        });
+    }
+});
+
 // Initialize everything when the page loads
 document.addEventListener('DOMContentLoaded', function() {
     const path = window.location.pathname;
