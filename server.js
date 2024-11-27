@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+require('dotenv').config();
+
 const app = express();
 
 app.use(express.json());
@@ -113,11 +115,11 @@ app.put('/api/articles/:id', async (req, res) => {
     }
 });
 
-const HOST = '0.0.0.0';
-const PORT = 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 3000;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://mongodb:27017/allstarswiki')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://mongodb:27017/allstarswiki')
     .then(() => {
         console.log('Connected to MongoDB');
         app.listen(PORT, HOST, () => {
