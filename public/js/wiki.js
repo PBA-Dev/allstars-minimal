@@ -61,12 +61,10 @@ function initializeCreateForm() {
 }
 
 // Handle article editing
-function initializeEditForm() {
+function initializeEditForm(articleId) {
     const editForm = document.getElementById('editForm');
     if (!editForm) return;
 
-    const articleId = window.location.pathname.split('/').pop();
-    
     // Load article data
     fetch(`/api/articles/${articleId}`)
         .then(response => response.json())
@@ -127,37 +125,49 @@ function loadArticles() {
 }
 
 // Load recent articles
-function loadRecentArticles() {
-    const articlesContainer = document.getElementById('articles');
-    if (!articlesContainer) return;
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    fetch('/api/articles')
-        .then(response => response.json())
-        .then(articles => {
-            const recentArticles = articles.filter(article => 
-                new Date(article.createdAt) >= thirtyDaysAgo ||
-                new Date(article.updatedAt) >= thirtyDaysAgo
-            );
-            displayArticles(recentArticles);
-        })
-        .catch(error => console.error('Error loading recent articles:', error));
+async function loadRecentArticles() {
+    try {
+        const response = await fetch('/api/articles/recent');
+        if (!response.ok) throw new Error('Failed to load recent articles');
+        const articles = await response.json();
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error loading recent articles:', error);
+    }
 }
 
 // Load a random article
-function loadRandomArticle() {
-    fetch('/api/random-article')
+async function loadRandomArticle() {
+    try {
+        const response = await fetch('/api/articles/random');
+        if (!response.ok) throw new Error('Failed to load random article');
+        const article = await response.json();
+        window.location.href = `/article/${article._id}`;
+    } catch (error) {
+        console.error('Error loading random article:', error);
+    }
+}
+
+// Load an article
+function loadArticle(articleId) {
+    const articleContainer = document.getElementById('article');
+    if (!articleContainer) return;
+
+    fetch(`/api/articles/${articleId}`)
         .then(response => response.json())
         .then(article => {
-            if (article) {
-                window.location.href = `/article/${article._id}`;
-            } else {
-                alert('Keine Artikel verfügbar');
-            }
+            articleContainer.innerHTML = `
+                <h1>${article.title}</h1>
+                <div class="article-content">${article.content}</div>
+                <p class="article-meta">
+                    Von: ${article.author}
+                    ${article.lastEditor ? 
+                        `Bearbeitet von: ${article.lastEditor}` : 
+                        ''}
+                </p>
+            `;
         })
-        .catch(error => console.error('Error loading random article:', error));
+        .catch(error => console.error('Error loading article:', error));
 }
 
 // Display articles in the grid
@@ -213,10 +223,41 @@ function displayArticles(articles) {
     });
 }
 
+// Handle navigation
+function handleNavigation() {
+    const path = window.location.pathname;
+    
+    if (path === '/create') {
+        initializeCreateForm();
+    } else if (path.startsWith('/edit/')) {
+        const articleId = path.split('/')[2];
+        initializeEditForm(articleId);
+    } else if (path.startsWith('/article/')) {
+        const articleId = path.split('/')[2];
+        loadArticle(articleId);
+    } else if (path === '/recent') {
+        loadRecentArticles();
+    } else {
+        loadArticles();
+    }
+}
+
 // Initialize everything when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    initializeQuill();
-    initializeCreateForm();
-    initializeEditForm();
-    loadArticles();
+    handleNavigation();
+    
+    // Add event listeners for navigation
+    document.querySelectorAll('nav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            if (!link.getAttribute('href').startsWith('http')) {
+                e.preventDefault();
+                const href = link.getAttribute('href');
+                history.pushState(null, '', href);
+                handleNavigation();
+            }
+        });
+    });
 });
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', handleNavigation);
