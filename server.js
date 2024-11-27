@@ -3,17 +3,21 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
+// Debug logging
+console.log('Working directory:', __dirname);
+console.log('Public directory:', path.join(__dirname, 'public'));
+
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Article Schema
 const articleSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  content: { type: String, required: true },
-  author: { type: String, required: true },
-  tags: [String],
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+    title: { type: String, required: true },
+    content: { type: String, required: true },
+    author: { type: String, required: true },
+    tags: [String],
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 const Article = mongoose.model('Article', articleSchema);
@@ -56,31 +60,39 @@ app.post('/api/articles', async (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({ 
+    res.json({
         status: 'ok',
         mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
     });
 });
 
-// Serve index.html for root route
+// Debug middleware for root route
+app.get('/create', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'create.html'));
+});
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    console.log('Trying to serve:', indexPath);
+    if (require('fs').existsSync(indexPath)) {
+        console.log('File exists at:', indexPath);
+        res.sendFile(indexPath);
+    } else {
+        console.log('File not found at:', indexPath);
+        res.status(404).send('index.html not found');
+    }
 });
 
 const HOST = '0.0.0.0';
 const PORT = 3000;
 
 // Connect to MongoDB
-mongoose.connect('mongodb://mongodb:27017/allstarswiki', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => {
-    console.log('Connected to MongoDB');
-    
-    // Only start server after MongoDB connection is established
-    app.listen(PORT, HOST, () => {
-        console.log(`Server is running on http://${HOST}:${PORT}`);
+mongoose.connect('mongodb://mongodb:27017/allstarswiki')
+    .then(() => {
+        console.log('Connected to MongoDB');
+        app.listen(PORT, HOST, () => {
+            console.log(`Server is running on http://${HOST}:${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err);
     });
-}).catch(err => {
-    console.error('MongoDB connection error:', err);
-});

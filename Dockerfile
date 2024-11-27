@@ -1,11 +1,11 @@
-FROM node:18-alpine
+FROM node:18
 
 WORKDIR /app
 
 COPY package*.json ./
-
 RUN npm install
 
+# Copy all application files including public directory
 COPY . .
 
 EXPOSE 3000
