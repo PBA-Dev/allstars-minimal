@@ -42,6 +42,37 @@ body {
     justify-content: space-between;
 }
 
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+}
+
+.home-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: var(--text-color);
+    background-color: #f5f5f5;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.home-button:hover {
+    background-color: #e5e5e5;
+}
+
+.home-button i {
+    margin-right: 8px;
+}
+
 /* Article tile styles */
 .article {
     background: white;

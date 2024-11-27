@@ -1,18 +1,17 @@
-// Initialize Quill editor if we're on the create page
+// Initialize Quill editor if we're on a page with an editor
 if (document.getElementById('editor-container')) {
-    var quill = new Quill('#editor-container', {
+    const quill = new Quill('#editor-container', {
         theme: 'snow',
         modules: {
             toolbar: [
                 [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
+                ['bold', 'italic', 'underline'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image', 'code-block'],
+                ['link', 'image'],
                 ['clean']
             ]
         },
-        placeholder: 'Artikelinhalt hier eingeben...'
+        placeholder: 'Schreiben Sie hier Ihren Artikel...'
     });
 }
 
@@ -65,16 +64,6 @@ function displayArticles(articles) {
                     <button class="button edit" onclick="editArticle('${article._id}'); event.stopPropagation();">
                         <i class="fas fa-edit"></i> Bearbeiten
                     </button>
-                </div>
-            </div>
-        `;
-    });
-}
-                <div class="article-meta">
-                    Von ${article.author} am ${date}
-                </div>
-                <div class="article-content">
-                    ${article.content}
                 </div>
             </div>
         `;
