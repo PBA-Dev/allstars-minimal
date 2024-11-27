@@ -1,114 +1,154 @@
 // Initialize Quill editor only on pages that need it
-let quill;
-function initializeQuill() {
-    const editorContainer = document.getElementById('editor-container');
-    if (!editorContainer) return;
+let quill = null;
+function initializeQuill(containerId = 'editor') {
+    const toolbarOptions = [
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockquote', 'code-block'],
+        [{ 'header': 1 }, { 'header': 2 }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'script': 'sub'}, { 'script': 'super' }],
+        [{ 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'direction': 'rtl' }],
+        [{ 'size': ['small', false, 'large', 'huge'] }],
+        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'font': [] }],
+        [{ 'align': [] }],
+        ['clean']
+    ];
 
-    quill = new Quill('#editor-container', {
+    return new Quill('#' + containerId, {
         theme: 'snow',
         modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['clean']
-            ]
-        },
-        placeholder: 'Schreiben Sie hier Ihren Artikel...'
+            toolbar: toolbarOptions
+        }
     });
-
-    return quill;
 }
 
 // Handle article creation
 function initializeCreateForm() {
-    const createForm = document.getElementById('createForm');
-    if (!createForm) return;
+    const container = document.querySelector('.container');
+    container.innerHTML = `
+        <div class="create-form">
+            <h1>Neuer Artikel</h1>
+            <form id="createForm">
+                <div class="form-group">
+                    <label for="title">Titel:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="author">Autor:</label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+                <div class="form-group">
+                    <label for="editor">Inhalt:</label>
+                    <div id="editor" style="height: 300px;"></div>
+                </div>
+                <button type="submit" class="btn">Artikel erstellen</button>
+            </form>
+        </div>
+    `;
 
-    createForm.addEventListener('submit', function(e) {
+    // Initialize Quill
+    quill = initializeQuill();
+
+    // Handle form submission
+    const form = document.getElementById('createForm');
+    form.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        const editorName = document.getElementById('editor-name').value;
-        if (!editorName.trim()) {
-            alert('Bitte geben Sie Ihren Namen ein.');
-            return;
-        }
-
         const article = {
             title: document.getElementById('title').value,
+            author: document.getElementById('author').value,
             content: quill.root.innerHTML,
-            author: editorName
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
 
         fetch('/api/articles', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(article)
         })
         .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            window.location.href = '/';
+        .then(savedArticle => {
+            window.location.href = `/article/${savedArticle._id}`;
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Fehler beim Speichern des Artikels. Bitte versuchen Sie es erneut.');
+            console.error('Error creating article:', error);
+            alert('Fehler beim Erstellen des Artikels');
         });
     });
 }
 
 // Handle article editing
 function initializeEditForm(articleId) {
-    const editForm = document.getElementById('editForm');
-    if (!editForm) return;
-
-    // Load article data
     fetch(`/api/articles/${articleId}`)
         .then(response => response.json())
         .then(article => {
-            document.getElementById('title').value = article.title;
-            if (quill) {
-                quill.root.innerHTML = article.content;
-            }
-        })
-        .catch(error => console.error('Error loading article:', error));
+            const container = document.querySelector('.container');
+            container.innerHTML = `
+                <div class="create-form">
+                    <h1>Artikel bearbeiten</h1>
+                    <form id="editForm">
+                        <div class="form-group">
+                            <label for="title">Titel:</label>
+                            <input type="text" id="title" name="title" value="${article.title}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editor">Inhalt:</label>
+                            <div id="editor" style="height: 300px;"></div>
+                        </div>
+                        <button type="submit" class="btn">Änderungen speichern</button>
+                    </form>
+                </div>
+            `;
 
-    // Handle form submission
-    editForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const editorName = document.getElementById('editor-name').value;
-        if (!editorName.trim()) {
-            alert('Bitte geben Sie Ihren Namen ein.');
-            return;
-        }
+            // Initialize Quill and set content
+            quill = initializeQuill();
+            quill.root.innerHTML = article.content;
 
-        const article = {
-            title: document.getElementById('title').value,
-            content: quill.root.innerHTML,
-            editor: editorName
-        };
+            // Handle form submission
+            const form = document.getElementById('editForm');
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const updatedArticle = {
+                    ...article,
+                    title: document.getElementById('title').value,
+                    content: quill.root.innerHTML,
+                    lastEditor: article.author,
+                    updatedAt: new Date().toISOString()
+                };
 
-        fetch(`/api/articles/${articleId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(article)
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            window.location.href = `/article/${articleId}`;
+                fetch(`/api/articles/${articleId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedArticle)
+                })
+                .then(response => response.json())
+                .then(savedArticle => {
+                    window.location.href = `/article/${savedArticle._id}`;
+                })
+                .catch(error => {
+                    console.error('Error updating article:', error);
+                    alert('Fehler beim Speichern der Änderungen');
+                });
+            });
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Fehler beim Speichern des Artikels. Bitte versuchen Sie es erneut.');
+            console.error('Error loading article for editing:', error);
+            container.innerHTML = '<div class="error">Artikel konnte nicht geladen werden.</div>';
         });
-    });
+}
+
+// Function to edit article
+function editArticle(articleId) {
+    window.location.href = `/edit/${articleId}`;
 }
 
 // Load articles for the homepage
