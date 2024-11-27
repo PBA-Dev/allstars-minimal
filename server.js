@@ -3,10 +3,6 @@ const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
 
-// Debug logging
-console.log('Working directory:', __dirname);
-console.log('Public directory:', path.join(__dirname, 'public'));
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -66,20 +62,53 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Debug middleware for root route
-app.get('/create', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'create.html'));
-});
+// Route handlers for HTML pages
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    console.log('Trying to serve:', indexPath);
-    if (require('fs').existsSync(indexPath)) {
-        console.log('File exists at:', indexPath);
-        res.sendFile(indexPath);
-    } else {
-        console.log('File not found at:', indexPath);
-        res.status(404).send('index.html not found');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/create', (req, res) => {
+app.get('/help', (req, res) => {
+app.get('/article/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'article.html'));
+});
+
+app.get('/edit/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'edit.html'));
+});
+
+app.get('/api/articles/:id', async (req, res) => {
+    try {
+        const article = await Article.findById(req.params.id);
+        if (!article) {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+        res.json(article);
+    } catch (error) {
+        console.error('Error fetching article:', error);
+        res.status(500).json({ error: 'Error fetching article' });
     }
+});
+
+app.put('/api/articles/:id', async (req, res) => {
+    try {
+        const article = await Article.findByIdAndUpdate(
+            req.params.id,
+            { ...req.body, updatedAt: Date.now() },
+            { new: true }
+        );
+        if (!article) {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+        res.json(article);
+    } catch (error) {
+        console.error('Error updating article:', error);
+        res.status(500).json({ error: 'Error updating article' });
+    }
+});
+    res.sendFile(path.join(__dirname, 'public', 'help.html'));
+});
+    res.sendFile(path.join(__dirname, 'public', 'create.html'));
 });
 
 const HOST = '0.0.0.0';
