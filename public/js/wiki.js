@@ -210,25 +210,34 @@ function displayArticles(articles) {
 
     articles.forEach(article => {
         const articleElement = document.createElement('div');
-        articleElement.className = 'article-card';
+        articleElement.className = 'article-tile';
         
         const truncatedContent = article.content.length > 150 
             ? article.content.substring(0, 150) + '...' 
             : article.content;
 
         articleElement.innerHTML = `
-            <h2><a href="/article/${article._id}">${article.title}</a></h2>
-            <div class="article-preview">${truncatedContent}</div>
-            <div class="article-meta">
-                <span><i class="fas fa-user"></i> ${article.author}</span>
-                <span><i class="fas fa-clock"></i> ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>
+            <div class="article-header">
+                <h2>${article.title}</h2>
             </div>
-            <div class="article-actions">
-                <button onclick="editArticle('${article._id}')" class="btn">
-                    <i class="fas fa-edit"></i> Bearbeiten
+            <div class="article-preview">${truncatedContent}</div>
+            <div class="article-footer">
+                <div class="article-meta">
+                    <span class="article-author"><i class="fas fa-user"></i> ${article.author}</span>
+                    <span class="article-date"><i class="fas fa-clock"></i> ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>
+                </div>
+                <button onclick="window.location.href='/article/${article._id}'" class="read-more-button">
+                    <i class="fas fa-arrow-right"></i> Weiterlesen
                 </button>
             </div>
         `;
+        
+        // Add click handler to the entire tile
+        articleElement.addEventListener('click', (e) => {
+            if (!e.target.closest('button')) {
+                window.location.href = `/article/${article._id}`;
+            }
+        });
         
         articlesContainer.appendChild(articleElement);
     });
@@ -238,18 +247,47 @@ function displayArticles(articles) {
 document.addEventListener('DOMContentLoaded', function() {
     const path = window.location.pathname;
     
-    if (path.startsWith('/article/')) {
-        const articleId = path.split('/')[2];
-        loadArticle(articleId);
-    } else if (path === '/create') {
+    if (path === '/create') {
         initializeCreateForm();
     } else if (path.startsWith('/edit/')) {
         const articleId = path.split('/')[2];
         initializeEditForm(articleId);
+    } else if (path.startsWith('/article/')) {
+        const articleId = path.split('/')[2];
+        loadArticle(articleId);
+    } else if (path === '/help') {
+        loadHelpPage();
     } else {
         loadArticles();
     }
 });
+
+// Function to load help page
+function loadHelpPage() {
+    const container = document.querySelector('.container');
+    container.innerHTML = `
+        <div class="help-page">
+            <h1>Hilfe & Anleitung</h1>
+            <section>
+                <h2>Navigation</h2>
+                <ul>
+                    <li><strong>Startseite:</strong> Zeigt alle verfügbaren Artikel an</li>
+                    <li><strong>Neuer Artikel:</strong> Erstellt einen neuen Wiki-Artikel</li>
+                    <li><strong>Letzte 30 Tage:</strong> Zeigt kürzlich erstellte oder bearbeitete Artikel</li>
+                    <li><strong>Zufälliger Artikel:</strong> Öffnet einen zufälligen Artikel</li>
+                </ul>
+            </section>
+            <section>
+                <h2>Artikel bearbeiten</h2>
+                <ul>
+                    <li>Klicken Sie auf den "Bearbeiten" Button innerhalb eines Artikels</li>
+                    <li>Nutzen Sie den Rich-Text-Editor für die Formatierung</li>
+                    <li>Speichern Sie Ihre Änderungen mit "Speichern"</li>
+                </ul>
+            </section>
+        </div>
+    `;
+}
 
 // Handle navigation
 function handleNavigation() {
@@ -269,6 +307,8 @@ function handleNavigation() {
         loadRecentArticles();
     } else if (path === '/random') {
         loadRandomArticle();
+    } else if (path === '/help') {
+        loadHelpPage();
     } else {
         loadArticles();
     }

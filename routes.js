@@ -20,8 +20,11 @@ router.get('/api/articles/:id', (req, res) => {
     }
 });
 
+// HTML Routes - Serve static files
+router.use(express.static(path.join(__dirname, 'public')));
+
 // HTML Routes - Serve index.html for client-side routing
-router.get(['/', '/create', '/edit/*', '/article/*', '/help'], (req, res) => {
+router.get(['/', '/create', '/edit/*', '/article/*', '/help', '/recent', '/random'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
