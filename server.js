@@ -68,7 +68,13 @@ app.get('/', (req, res) => {
 });
 
 app.get('/create', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'create.html'));
+});
+
 app.get('/help', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'help.html'));
+});
+
 app.get('/article/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'article.html'));
 });
@@ -105,10 +111,6 @@ app.put('/api/articles/:id', async (req, res) => {
         console.error('Error updating article:', error);
         res.status(500).json({ error: 'Error updating article' });
     }
-});
-    res.sendFile(path.join(__dirname, 'public', 'help.html'));
-});
-    res.sendFile(path.join(__dirname, 'public', 'create.html'));
 });
 
 const HOST = '0.0.0.0';
