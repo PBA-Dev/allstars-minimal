@@ -6,71 +6,33 @@
     <title>Allstars Wiki - Hauptseite</title>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <div class="wiki-container">
-        <header class="wiki-header">
-            <div class="logo-container">
-                <div class="logo">
-                    <h1 class="colored-title">
-                        <span>A</span><span>l</span><span>l</span><span>s</span><span>t</span><span>a</span><span>r</span><span>s</span>
-                        Wiki
-                    </h1>
-                </div>
-                <a href="/" class="button home-button">
-                    <i class="fas fa-home"></i> Startseite
+    <header class="wiki-header">
+        <div class="logo-container">
+            <div class="logo">
+                <h1 class="colored-title">
+                    <span>A</span><span>l</span><span>l</span><span>s</span><span>t</span><span>a</span><span>r</span><span>s</span>
+                    Wiki
+                </h1>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
+                <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
+                <a href="#" onclick="loadRecentArticles(); return false;" class="nav-button">
+                    <i class="fas fa-clock"></i> Letzte 30 Tage
                 </a>
+                <a href="#" onclick="loadRandomArticle(); return false;" class="nav-button">
+                    <i class="fas fa-random"></i> Zufälliger Artikel
+                </a>
+                <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
             </div>
-            <div class="search-container">
-                <input type="text" placeholder="Suchen...">
-                <button onclick="window.location.href='/create'" class="button primary">
-                    <i class="fas fa-plus"></i> Neuer Artikel
-                </button>
-            </div>
-        </header>
+        </div>
+    </header>
 
-        <main class="wiki-content">
-            <h2>Artikel</h2>
-            <div id="articles"></div>
-        </main>
-
-        <aside class="wiki-sidebar">
-            <div class="quick-links">
-                <h3>Schnellzugriff</h3>
-                <ul>
-                    <li>
-                        <a href="/" class="nav-link">
-                            <i class="fas fa-home"></i> Startseite
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" onclick="loadArticles(); return false;">
-                            <i class="fas fa-list"></i> Alle Artikel
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" onclick="loadRandomArticle(); return false;">
-                            <i class="fas fa-random"></i> Zufälliger Artikel
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" onclick="loadRecentArticles(); return false;">
-                            <i class="fas fa-clock"></i> Artikel der letzten 30 Tage
-                        </a>
-                    </li>
-                    <li>
-                        <a href="/help">
-                            <i class="fas fa-question-circle"></i> Hilfe
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </aside>
-
-        <footer class="wiki-footer">
-            <p> 2023 Allstars Wiki - Ein Projekt für Pflege-Wissen</p>
-        </footer>
+    <div class="container">
+        <div id="articles" class="articles-grid"></div>
     </div>
 
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allstars Wiki - Hilfe</title>
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header class="wiki-header">
+        <div class="logo-container">
+            <div class="logo">
+                <h1 class="colored-title">
+                    <span>A</span><span>l</span><span>l</span><span>s</span><span>t</span><span>a</span><span>r</span><span>s</span>
+                    Wiki
+                </h1>
+            </div>
+            <div class="header-actions">
+                <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
+                <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
+                <a href="#" onclick="loadRecentArticles(); return false;" class="nav-button">
+                    <i class="fas fa-clock"></i> Letzte 30 Tage
+                </a>
+                <a href="#" onclick="loadRandomArticle(); return false;" class="nav-button">
+                    <i class="fas fa-random"></i> Zufälliger Artikel
+                </a>
+                <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="help-content">
+            <h1>Willkommen in der Allstars Wiki Hilfe</h1>
+            
+            <section class="help-section">
+                <h2><i class="fas fa-book"></i> Artikel lesen</h2>
+                <p>Auf der Startseite finden Sie eine Übersicht aller verfügbaren Artikel. Jeder Artikel wird als Kachel mit einer Vorschau angezeigt. Klicken Sie auf den Pfeil-Button, um den vollständigen Artikel zu lesen.</p>
+            </section>
+
+            <section class="help-section">
+                <h2><i class="fas fa-plus"></i> Neuen Artikel erstellen</h2>
+                <ol>
+                    <li>Klicken Sie auf "Neuer Artikel" in der Navigation</li>
+                    <li>Geben Sie einen Titel für den Artikel ein</li>
+                    <li>Tragen Sie Ihren Namen als Autor ein</li>
+                    <li>Nutzen Sie den Editor, um den Artikelinhalt zu erstellen:
+                        <ul>
+                            <li>Formatieren Sie Text mit den Werkzeugen in der Toolbar</li>
+                            <li>Fügen Sie Listen und Links ein</li>
+                            <li>Nutzen Sie Überschriften zur Strukturierung</li>
+                        </ul>
+                    </li>
+                    <li>Klicken Sie auf "Artikel speichern", um den Artikel zu veröffentlichen</li>
+                </ol>
+            </section>
+
+            <section class="help-section">
+                <h2><i class="fas fa-edit"></i> Artikel bearbeiten</h2>
+                <ol>
+                    <li>Öffnen Sie den Artikel, den Sie bearbeiten möchten</li>
+                    <li>Klicken Sie auf den Bearbeiten-Button (Stift-Symbol)</li>
+                    <li>Nehmen Sie Ihre Änderungen vor</li>
+                    <li>Geben Sie Ihren Namen ein, um die Änderung zu dokumentieren</li>
+                    <li>Speichern Sie Ihre Änderungen</li>
+                </ol>
+                <p>Alle Änderungen werden in der Versionshistorie des Artikels dokumentiert.</p>
+            </section>
+
+            <section class="help-section">
+                <h2><i class="fas fa-search"></i> Artikel finden</h2>
+                <p>Es gibt mehrere Möglichkeiten, Artikel zu finden:</p>
+                <ul>
+                    <li><strong>Startseite:</strong> Zeigt alle verfügbaren Artikel</li>
+                    <li><strong>Letzte 30 Tage:</strong> Zeigt kürzlich erstellte oder bearbeitete Artikel</li>
+                    <li><strong>Zufälliger Artikel:</strong> Öffnet einen zufälligen Artikel zum Entdecken</li>
+                </ul>
+            </section>
+
+            <section class="help-section">
+                <h2><i class="fas fa-history"></i> Versionshistorie</h2>
+                <p>Jeder Artikel verfügt über eine Versionshistorie, die alle Änderungen dokumentiert:</p>
+                <ul>
+                    <li>Wer hat den Artikel bearbeitet</li>
+                    <li>Wann wurde die Änderung vorgenommen</li>
+                    <li>Zugriff über den "Historie"-Button am Artikel</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <script src="/js/wiki.js"></script>
+</body>
+</html>
