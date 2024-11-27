@@ -127,7 +127,7 @@ function loadArticles() {
 // Load recent articles
 async function loadRecentArticles() {
     try {
-        const response = await fetch('/api/articles/recent');
+        const response = await fetch('/api/recent-articles');
         if (!response.ok) throw new Error('Failed to load recent articles');
         const articles = await response.json();
         displayArticles(articles);
@@ -139,35 +139,50 @@ async function loadRecentArticles() {
 // Load a random article
 async function loadRandomArticle() {
     try {
-        const response = await fetch('/api/articles/random');
+        const response = await fetch('/api/random-article');
         if (!response.ok) throw new Error('Failed to load random article');
         const article = await response.json();
-        window.location.href = `/article/${article._id}`;
+        history.pushState(null, '', `/article/${article._id}`);
+        handleNavigation();
     } catch (error) {
         console.error('Error loading random article:', error);
     }
 }
 
 // Load an article
-function loadArticle(articleId) {
-    const articleContainer = document.getElementById('article');
-    if (!articleContainer) return;
-
-    fetch(`/api/articles/${articleId}`)
-        .then(response => response.json())
-        .then(article => {
-            articleContainer.innerHTML = `
-                <h1>${article.title}</h1>
+async function loadArticle(articleId) {
+    try {
+        const response = await fetch(`/api/articles/${articleId}`);
+        if (!response.ok) throw new Error('Failed to load article');
+        const article = await response.json();
+        
+        const mainContent = document.querySelector('.container');
+        mainContent.innerHTML = `
+            <article class="article-view">
+                <div class="article-header">
+                    <h1>${article.title}</h1>
+                    <div class="article-actions">
+                        <button onclick="editArticle('${article._id}')" class="btn">
+                            <i class="fas fa-edit"></i> Bearbeiten
+                        </button>
+                        <button onclick="showHistory('${article._id}')" class="btn">
+                            <i class="fas fa-history"></i> Verlauf
+                        </button>
+                    </div>
+                </div>
                 <div class="article-content">${article.content}</div>
-                <p class="article-meta">
-                    Von: ${article.author}
-                    ${article.lastEditor ? 
-                        `Bearbeitet von: ${article.lastEditor}` : 
-                        ''}
-                </p>
-            `;
-        })
-        .catch(error => console.error('Error loading article:', error));
+                <div class="article-meta">
+                    <p>Erstellt von: ${article.author}</p>
+                    ${article.lastEditor ? `<p>Zuletzt bearbeitet von: ${article.lastEditor}</p>` : ''}
+                    <p>Zuletzt aktualisiert: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</p>
+                </div>
+            </article>
+        `;
+    } catch (error) {
+        console.error('Error loading article:', error);
+        const mainContent = document.querySelector('.container');
+        mainContent.innerHTML = '<div class="error">Artikel konnte nicht geladen werden.</div>';
+    }
 }
 
 // Display articles in the grid
@@ -227,7 +242,9 @@ function displayArticles(articles) {
 function handleNavigation() {
     const path = window.location.pathname;
     
-    if (path === '/create') {
+    if (path === '/') {
+        loadArticles();
+    } else if (path === '/create') {
         initializeCreateForm();
     } else if (path.startsWith('/edit/')) {
         const articleId = path.split('/')[2];
@@ -237,6 +254,8 @@ function handleNavigation() {
         loadArticle(articleId);
     } else if (path === '/recent') {
         loadRecentArticles();
+    } else if (path === '/random') {
+        loadRandomArticle();
     } else {
         loadArticles();
     }
