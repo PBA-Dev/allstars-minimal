@@ -136,6 +136,7 @@ if (!fs.existsSync(uploadsDir)) {
 // API endpoints
 // Get all articles
 app.get('/api/articles', (req, res) => {
+    console.log('Reading articles directory...');
     fs.readdir(articlesDir, (err, files) => {
         if (err) {
             console.error('Error reading articles directory:', err);
@@ -144,28 +145,17 @@ app.get('/api/articles', (req, res) => {
 
         // Filter only JSON files
         const jsonFiles = files.filter(file => file.endsWith('.json'));
+        console.log('Found JSON files:', jsonFiles);
+        
         const articles = [];
         let processed = 0;
 
-        // If no JSON files found in articles directory, try reading from articles.json
-        if (jsonFiles.length === 0) {
-            const articlesJsonPath = path.join(__dirname, 'articles.json');
-            if (fs.existsSync(articlesJsonPath)) {
-                try {
-                    const articlesData = fs.readFileSync(articlesJsonPath, 'utf8');
-                    const parsedArticles = JSON.parse(articlesData);
-                    return res.json(parsedArticles);
-                } catch (err) {
-                    console.error('Error reading articles.json:', err);
-                    return res.status(500).json({ error: 'Internal server error' });
-                }
-            }
-            return res.json([]); // Return empty array if no articles found
-        }
-
-        // Process individual JSON files from articles directory
+        // Process each JSON file
         jsonFiles.forEach(file => {
-            fs.readFile(path.join(articlesDir, file), 'utf8', (err, data) => {
+            const filePath = path.join(articlesDir, file);
+            console.log('Reading file:', filePath);
+            
+            fs.readFile(filePath, 'utf8', (err, data) => {
                 if (err) {
                     console.error('Error reading article file:', err);
                     processed++;
@@ -174,6 +164,7 @@ app.get('/api/articles', (req, res) => {
                         const article = JSON.parse(data);
                         article.id = file.replace('.json', '');
                         articles.push(article);
+                        console.log('Successfully parsed article:', article.title);
                     } catch (err) {
                         console.error('Error parsing article JSON:', err);
                     }
@@ -183,10 +174,17 @@ app.get('/api/articles', (req, res) => {
                 if (processed === jsonFiles.length) {
                     // Sort articles by creation date, newest first
                     articles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    console.log('Sending articles response, count:', articles.length);
                     res.json(articles);
                 }
             });
         });
+
+        // If no JSON files found, return empty array
+        if (jsonFiles.length === 0) {
+            console.log('No JSON files found');
+            res.json([]);
+        }
     });
 });
 
