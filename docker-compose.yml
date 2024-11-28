@@ -15,6 +15,9 @@ services:
     container_name: allstars-wiki-minimal
     ports:
       - "3000:3000"
+    volumes:
+      - wiki_articles:/app/articles
+      - wiki_uploads:/app/public/uploads
     depends_on:
       - mongodb
     networks:
@@ -27,4 +30,8 @@ networks:
 
 volumes:
   mongodb_data:
+    driver: local
+  wiki_articles:
+    driver: local
+  wiki_uploads:
     driver: local
