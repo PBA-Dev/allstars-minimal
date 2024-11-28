@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allstars Wiki - Artikel</title>
+    <title>Artikel - AllstarsWiki</title>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
@@ -103,6 +103,7 @@
             float: right;
             font-size: 28px;
             font-weight: bold;
+            cursor: pointer;
         }
         
         .close:hover,
@@ -143,17 +144,17 @@
         <div class="logo-container">
             <div class="logo">
                 <h1 class="colored-title">
-                    <span>A</span><span>l</span><span>l</span><span>s</span><span>t</span><span>a</span><span>r</span><span>s</span>
-                    Wiki
+                    All<span style="color: #ff0606;">s</span><span style="color: #f27326;">t</span><span style="color: #fcb11d;">a</span><span style="color: #06a454;">r</span><span style="color: #06bafd;">s</span>&nbsp;Wiki
+                    
                 </h1>
             </div>
             <div class="header-actions">
                 <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
                 <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
-                <a href="#" onclick="loadRecentArticles(); return false;" class="nav-button">
+                <a href="#" id="recentArticlesBtn" class="nav-button">
                     <i class="fas fa-clock"></i> Letzte 30 Tage
                 </a>
-                <a href="#" onclick="loadRandomArticle(); return false;" class="nav-button">
+                <a href="#" id="randomArticleBtn" class="nav-button">
                     <i class="fas fa-random"></i> Zufälliger Artikel
                 </a>
                 <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
@@ -162,113 +163,38 @@
     </header>
 
     <div class="container">
-        <div id="article-container">
-            <div class="article-actions">
-                <button onclick="editArticle()" class="action-button">
-                    <i class="fas fa-edit"></i> Bearbeiten
-                </button>
-                <button onclick="showHistory()" class="action-button">
-                    <i class="fas fa-history"></i> Historie
-                </button>
-            </div>
-            <div id="article-content"></div>
-            
-            <div id="history-modal" class="modal">
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <h2>Versionshistorie</h2>
-                    <div id="history-content"></div>
-                </div>
-            </div>
+        <div id="article-content">
+            <div class="loading">Artikel wird geladen...</div>
         </div>
     </div>
 
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="/js/wiki.js"></script>
     <script>
-        const articleId = window.location.pathname.split('/').pop();
-        const historyModal = document.getElementById('history-modal');
-        const closeBtn = document.getElementsByClassName('close')[0];
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get elements
+            const recentArticlesBtn = document.getElementById('recentArticlesBtn');
+            const randomArticleBtn = document.getElementById('randomArticleBtn');
 
-        // Close modal when clicking (x)
-        closeBtn.onclick = function() {
-            historyModal.style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            if (event.target == historyModal) {
-                historyModal.style.display = 'none';
+            // Add event listeners
+            if (recentArticlesBtn) {
+                recentArticlesBtn.onclick = function() {
+                    window.location.href = '/?view=recent';
+                    return false;
+                };
             }
-        }
 
-        function showHistory() {
-            fetch(`/api/articles/${articleId}/history`)
-                .then(response => response.json())
-                .then(history => {
-                    const historyContent = document.getElementById('history-content');
-                    historyContent.innerHTML = '';
-                    
-                    if (history.length === 0) {
-                        historyContent.innerHTML = '<p>Keine Versionshistorie verfügbar.</p>';
-                        return;
-                    }
+            if (randomArticleBtn) {
+                randomArticleBtn.onclick = function() {
+                    loadRandomArticle();
+                    return false;
+                };
+            }
 
-                    const historyList = document.createElement('ul');
-                    historyList.className = 'history-list';
-
-                    history.forEach(entry => {
-                        const date = new Date(entry.date).toLocaleString('de-DE');
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <div class="history-entry">
-                                <span class="history-action">
-                                    ${entry.action === 'created' ? 'Erstellt' : 'Bearbeitet'}
-                                </span>
-                                <span class="history-author">von ${entry.editor}</span>
-                                <span class="history-date">${date}</span>
-                                ${entry.previousTitle ? 
-                                    `<div class="history-title-change">
-                                        Titel geändert von "${entry.previousTitle}" zu "${entry.title}"
-                                    </div>` : 
-                                    ''}
-                            </div>
-                        `;
-                        historyList.appendChild(li);
-                    });
-
-                    historyContent.appendChild(historyList);
-                    historyModal.style.display = 'block';
-                })
-                .catch(error => console.error('Error loading history:', error));
-        }
-
-        function editArticle() {
-            window.location.href = `/edit/${articleId}`;
-        }
-
-        // Load article content
-        fetch(`/api/articles/${articleId}`)
-            .then(response => response.json())
-            .then(article => {
-                document.title = `Allstars Wiki - ${article.title}`;
-                const date = new Date(article.updatedAt).toLocaleString('de-DE');
-                
-                document.getElementById('article-content').innerHTML = `
-                    <div class="article">
-                        <h1>${article.title}</h1>
-                        <div class="article-meta">
-                            <span>Erstellt von ${article.author}</span>
-                            ${article.lastEditor ? 
-                                `<span>Zuletzt bearbeitet von ${article.lastEditor}</span>` : 
-                                ''}
-                            <span>Zuletzt aktualisiert: ${date}</span>
-                        </div>
-                        <div class="article-body">
-                            ${article.content}
-                        </div>
-                    </div>
-                `;
-            })
-            .catch(error => console.error('Error:', error));
+            // Load article content
+            const articleId = window.location.pathname.split('/').pop();
+            loadArticle(articleId);
+        });
     </script>
 </body>
 </html>

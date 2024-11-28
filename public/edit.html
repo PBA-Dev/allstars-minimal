@@ -3,111 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Allstars Wiki - Artikel bearbeiten</title>
+    <title>Artikel bearbeiten - AllstarsWiki</title>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <nav>
-        <a href="/"><i class="fas fa-home"></i> Startseite</a>
-        <a href="/create"><i class="fas fa-plus"></i> Neuer Artikel</a>
-    </nav>
-
-    <div class="container">
-        <h1>Artikel bearbeiten</h1>
-        
-        <form id="editForm" class="create-form">
-            <div class="form-group">
-                <label for="title">Titel:</label>
-                <input type="text" id="title" name="title" required>
+    <header class="wiki-header">
+        <div class="logo-container">
+            <div class="logo">
+                <h1 class="colored-title">
+                    All<span style="color: #ff0606;">s</span><span style="color: #f27326;">t</span><span style="color: #fcb11d;">a</span><span style="color: #06a454;">r</span><span style="color: #06bafd;">s</span>&nbsp;Wiki
+                    
+                </h1>
             </div>
-            
-            <div class="form-group">
-                <label for="editor-name">Ihr Name (erforderlich für die Änderungshistorie):</label>
-                <input type="text" id="editor-name" name="editor-name" required 
-                       placeholder="Bitte geben Sie Ihren Namen ein">
+            <div class="header-actions">
+                <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
+                <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
+                <a href="#" id="recentArticlesBtn" class="nav-button">
+                    <i class="fas fa-clock"></i> Letzte 30 Tage
+                </a>
+                <a href="#" id="randomArticleBtn" class="nav-button">
+                    <i class="fas fa-random"></i> Zufälliger Artikel
+                </a>
+                <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
             </div>
-
-            <div class="form-group">
-                <label for="editor-container">Inhalt:</label>
-                <div id="editor-container"></div>
-            </div>
-            
-            <div class="form-actions">
-                <button type="submit" class="read-more-button">
-                    <i class="fas fa-save"></i> Änderungen speichern
-                </button>
-            </div>
-        </form>
-    </div>
-
+        </div>
+    </header>
+    <main>
+        <div class="container">
+            <h1>Artikel bearbeiten</h1>
+            <form id="editForm">
+                <div class="form-group">
+                    <label for="title">Titel:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="editor-name">Autor:</label>
+                    <input type="text" id="editor-name" name="editor-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="editor">Inhalt:</label>
+                    <div id="editor-container" style="height: 400px;"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Speichern</button>
+                    <a href="/" class="btn secondary">Abbrechen</a>
+                </div>
+            </form>
+        </div>
+    </main>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/js/wiki.js"></script>
     <script>
-        let quill;
-        let articleId;
-
-        function onload() {
-            // Initialize Quill editor
-            quill = new Quill('#editor-container', {
-                theme: 'snow',
-                modules: {
-                    toolbar: [
-                        [{ 'header': [1, 2, 3, false] }],
-                        ['bold', 'italic', 'underline'],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        ['link', 'clean']
-                    ]
-                }
-            });
-
-            // Get article ID from URL
-            articleId = window.location.pathname.split('/').pop();
-
-            // Load article data
-            fetch(`/api/articles/${articleId}`)
-                .then(response => response.json())
-                .then(article => {
-                    document.getElementById('title').value = article.title;
-                    quill.root.innerHTML = article.content;
-                })
-                .catch(error => {
-                    console.error('Error loading article:', error);
-                    window.location.href = '/';
-                });
-        }
-
-        document.getElementById('editForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const editorName = document.getElementById('editor-name').value;
-            if (!editorName.trim()) {
-                alert('Bitte geben Sie Ihren Namen ein.');
-                return;
-            }
-
-            const updatedArticle = {
-                title: document.getElementById('title').value,
-                content: quill.root.innerHTML,
-                editor: editorName
-            };
-
-            fetch(`/api/articles/${articleId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedArticle)
-            })
-            .then(response => response.json())
-            .then(() => {
-                window.location.href = `/article/${articleId}`;
-            })
-            .catch(error => console.error('Error updating article:', error));
+        const articleId = window.location.pathname.split('/').pop();
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEditForm(articleId);
         });
-
-        onload();
     </script>
 </body>
 </html>

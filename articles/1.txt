@@ -1,0 +1,7 @@
+Test Article 1
+
+This is a test article to demonstrate how articles are stored in separate files.
+
+Each article has a title (first line) followed by content (separated by blank lines).
+
+The content can have multiple paragraphs and formatting will be preserved.

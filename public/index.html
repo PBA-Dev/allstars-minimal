@@ -71,17 +71,17 @@
         <div class="logo-container">
             <div class="logo">
                 <h1 class="colored-title">
-                    All<span style="color: #ff0606;">s</span><span style="color: #f27326;">t</span><span style="color: #fcb11d;">a</span><span style="color: #06a454;">r</span><span style="color: #06bafd;">s</span>
-                    Wiki
+                    All<span style="color: #ff0606;">s</span><span style="color: #f27326;">t</span><span style="color: #fcb11d;">a</span><span style="color: #06a454;">r</span><span style="color: #06bafd;">s</span>&nbsp;Wiki
+                    
                 </h1>
             </div>
             <div class="header-actions">
                 <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
                 <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
-                <a href="#" onclick="loadRecentArticles(); return false;" class="nav-button">
+                <a href="#" id="recentArticlesBtn" class="nav-button">
                     <i class="fas fa-clock"></i> Letzte 30 Tage
                 </a>
-                <a href="#" onclick="loadRandomArticle(); return false;" class="nav-button">
+                <a href="#" id="randomArticleBtn" class="nav-button">
                     <i class="fas fa-random"></i> Zufälliger Artikel
                 </a>
                 <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
@@ -102,5 +102,42 @@
 
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/js/wiki.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get elements
+            const recentArticlesBtn = document.getElementById('recentArticlesBtn');
+            const randomArticleBtn = document.getElementById('randomArticleBtn');
+            const searchInput = document.getElementById('searchInput');
+
+            // Add event listeners
+            if (recentArticlesBtn) {
+                recentArticlesBtn.onclick = function() {
+                    loadRecentArticles();
+                    return false;
+                };
+            }
+
+            if (randomArticleBtn) {
+                randomArticleBtn.onclick = function() {
+                    loadRandomArticle();
+                    return false;
+                };
+            }
+
+            // Initialize articles on home page
+            if (window.location.pathname === '/') {
+                loadArticles();
+            }
+
+            // Add search input event listener
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchArticles();
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

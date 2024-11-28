@@ -1,424 +1,317 @@
-// Initialize Quill editor only on pages that need it
+// Initialize Quill editor
 let quill = null;
-function initializeQuill(containerId = 'editor') {
-    const toolbarOptions = [
-        ['bold', 'italic', 'underline', 'strike'],
-        ['blockquote', 'code-block'],
-        [{ 'header': 1 }, { 'header': 2 }],
-        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-        [{ 'script': 'sub'}, { 'script': 'super' }],
-        [{ 'indent': '-1'}, { 'indent': '+1' }],
-        [{ 'direction': 'rtl' }],
-        [{ 'size': ['small', false, 'large', 'huge'] }],
-        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-        [{ 'color': [] }, { 'background': [] }],
-        [{ 'font': [] }],
-        [{ 'align': [] }],
-        ['clean']
-    ];
 
-    return new Quill('#' + containerId, {
+function initializeQuill() {
+    const options = {
         theme: 'snow',
         modules: {
-            toolbar: toolbarOptions
+            toolbar: [
+                [{ 'header': [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'align': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'script': 'sub'}, { 'script': 'super' }],
+                [{ 'indent': '-1'}, { 'indent': '+1' }],
+                ['blockquote', 'code-block'],
+                ['link', 'image'],
+                ['clean']
+            ]
         }
-    });
+    };
+
+    // Only initialize if editor container exists
+    const container = document.getElementById('editor-container');
+    if (container) {
+        quill = new Quill('#editor-container', options);
+        return quill;
+    }
+    return null;
 }
 
-// Handle article creation
-function initializeCreateForm() {
-    const container = document.querySelector('.container');
-    container.innerHTML = `
-        <div class="create-form">
-            <h1>Neuer Artikel</h1>
-            <form id="createForm">
-                <div class="form-group">
-                    <label for="title">Titel:</label>
-                    <input type="text" id="title" name="title" required>
-                </div>
-                <div class="form-group">
-                    <label for="author">Autor:</label>
-                    <input type="text" id="author" name="author" required>
-                </div>
-                <div class="form-group">
-                    <label for="editor">Inhalt:</label>
-                    <div id="editor" style="height: 300px;"></div>
-                </div>
-                <button type="submit" class="btn">Artikel erstellen</button>
-            </form>
-        </div>
-    `;
+// Handle image upload
+function handleImageUpload(quill) {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
 
-    // Initialize Quill
-    quill = initializeQuill();
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('image', file);
 
-    // Handle form submission
-    const form = document.getElementById('createForm');
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const article = {
-            title: document.getElementById('title').value,
-            author: document.getElementById('author').value,
-            content: quill.root.innerHTML,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
 
-        fetch('/api/articles', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(article)
-        })
-        .then(response => response.json())
-        .then(savedArticle => {
-            window.location.href = `/article/${savedArticle._id}`;
-        })
-        .catch(error => {
-            console.error('Error creating article:', error);
-            alert('Fehler beim Erstellen des Artikels');
-        });
-    });
+                if (response.ok) {
+                    const { url } = await response.json();
+                    const range = quill.getSelection(true);
+                    quill.insertEmbed(range.index, 'image', url);
+                } else {
+                    console.error('Upload failed:', await response.text());
+                    alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
+            }
+        }
+    };
 }
 
-// Handle article editing
+// Initialize edit form
 function initializeEditForm(articleId) {
+    const quill = initializeQuill();
+    const form = document.getElementById('editForm');
+
+    // Add image upload handler
+    quill.getModule('toolbar').addHandler('image', () => {
+        handleImageUpload(quill);
+    });
+
+    // Load article data
     fetch(`/api/articles/${articleId}`)
         .then(response => response.json())
         .then(article => {
-            const container = document.querySelector('.container');
-            container.innerHTML = `
-                <div class="create-form">
-                    <h1>Artikel bearbeiten</h1>
-                    <form id="editForm">
-                        <div class="form-group">
-                            <label for="title">Titel:</label>
-                            <input type="text" id="title" name="title" value="${article.title}" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="editor">Inhalt:</label>
-                            <div id="editor" style="height: 300px;"></div>
-                        </div>
-                        <button type="submit" class="btn">Änderungen speichern</button>
-                    </form>
-                </div>
-            `;
-
-            // Initialize Quill and set content
-            quill = initializeQuill();
-            quill.root.innerHTML = article.content;
-
-            // Handle form submission
-            const form = document.getElementById('editForm');
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const updatedArticle = {
-                    ...article,
-                    title: document.getElementById('title').value,
-                    content: quill.root.innerHTML,
-                    lastEditor: article.author,
-                    updatedAt: new Date().toISOString()
-                };
-
-                fetch(`/api/articles/${articleId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedArticle)
-                })
-                .then(response => response.json())
-                .then(savedArticle => {
-                    window.location.href = `/article/${savedArticle._id}`;
-                })
-                .catch(error => {
-                    console.error('Error updating article:', error);
-                    alert('Fehler beim Speichern der Änderungen');
-                });
-            });
+            document.getElementById('title').value = article.title || '';
+            document.getElementById('editor-name').value = article.author || '';
+            quill.root.innerHTML = article.content || '';
         })
         .catch(error => {
-            console.error('Error loading article for editing:', error);
-            container.innerHTML = '<div class="error">Artikel konnte nicht geladen werden.</div>';
+            console.error('Error:', error);
+            alert('Fehler beim Laden des Artikels');
         });
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('title').value;
+        const author = document.getElementById('editor-name').value;
+        const content = quill.root.innerHTML;
+
+        try {
+            const response = await fetch(`/api/articles/${articleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, author, content })
+            });
+
+            if (response.ok) {
+                window.location.href = `/article/${articleId}`;
+            } else {
+                alert('Fehler beim Speichern des Artikels');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Fehler beim Speichern des Artikels');
+        }
+    };
 }
 
-// Function to edit article
-function editArticle(articleId) {
-    window.location.href = `/edit/${articleId}`;
+// Initialize create form
+function initializeCreateForm() {
+    const quill = initializeQuill();
+    const form = document.getElementById('createForm');
+
+    // Add image upload handler
+    quill.getModule('toolbar').addHandler('image', () => {
+        handleImageUpload(quill);
+    });
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('title').value;
+        const author = document.getElementById('author').value;
+        const content = quill.root.innerHTML;
+
+        try {
+            const response = await fetch('/api/articles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, author, content })
+            });
+
+            if (response.ok) {
+                const article = await response.json();
+                window.location.href = `/article/${article.id}`;
+            } else {
+                alert('Fehler beim Speichern des Artikels');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Fehler beim Speichern des Artikels');
+        }
+    };
 }
 
-// Load articles for the homepage
+// Load articles for index page
 function loadArticles() {
-    const articlesContainer = document.getElementById('articles');
-    if (!articlesContainer) return;
+    const articleList = document.getElementById('articles');
+    if (!articleList) return;
 
-    fetch('/api/articles')
-        .then(response => response.json())
-        .then(articles => {
-            displayArticles(articles);
-        })
-        .catch(error => console.error('Error loading articles:', error));
-}
-
-// Load recent articles
-function loadRecentArticles() {
-    const articlesContainer = document.getElementById('articles');
-    if (!articlesContainer) return;
-
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    fetch('/api/articles')
-        .then(response => response.json())
-        .then(articles => {
-            const recentArticles = articles.filter(article => 
-                new Date(article.createdAt) >= thirtyDaysAgo ||
-                new Date(article.updatedAt) >= thirtyDaysAgo
-            );
-            displayArticles(recentArticles);
-        })
-        .catch(error => console.error('Error loading recent articles:', error));
-}
-
-// Load a random article
-function loadRandomArticle() {
     fetch('/api/articles')
         .then(response => response.json())
         .then(articles => {
             if (articles.length === 0) {
-                alert('Keine Artikel verfügbar');
+                articleList.innerHTML = '<p>Keine Artikel vorhanden.</p>';
                 return;
             }
-            const randomIndex = Math.floor(Math.random() * articles.length);
-            const article = articles[randomIndex];
-            window.location.href = `/article/${article._id}`;
+            
+            articleList.innerHTML = articles.map(article => `
+                <article class="article-preview">
+                    <h2><a href="/article/${article.id}">${article.title}</a></h2>
+                    <div class="article-meta">
+                        <span>Autor: ${article.author || 'Unbekannt'}</span>
+                        <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                    </div>
+                    <div class="article-actions">
+                        <a href="/article/${article.id}" class="read-button"><i class="fas fa-book-open"></i> Lesen</a>
+                    </div>
+                </article>
+            `).join('');
         })
-        .catch(error => console.error('Error loading random article:', error));
+        .catch(error => {
+            console.error('Error:', error);
+            articleList.innerHTML = '<p>Fehler beim Laden der Artikel</p>';
+        });
 }
 
-// Load a specific article
+// Load single article
 function loadArticle(articleId) {
-    const articlesContainer = document.getElementById('articles');
-    if (!articlesContainer) return;
+    const container = document.getElementById('article-content');
+    if (!container) return;
 
     fetch(`/api/articles/${articleId}`)
         .then(response => response.json())
         .then(article => {
-            articlesContainer.innerHTML = `
-                <div class="article-single">
-                    <div class="article-header">
+            document.title = `AllstarsWiki - ${article.title}`;
+            container.innerHTML = `
+                <article class="article-full">
+                    <header class="article-header">
                         <h1>${article.title}</h1>
-                        <div class="article-actions">
-                            <button onclick="editArticle('${article._id}')" class="btn">
-                                <i class="fas fa-edit"></i> Bearbeiten
-                            </button>
-                            <button onclick="showHistory('${article._id}')" class="btn">
-                                <i class="fas fa-history"></i> Verlauf
-                            </button>
+                        <div class="article-meta">
+                            <span>Autor: ${article.author || 'Unbekannt'}</span>
+                            <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                            ${article.updatedAt ? `<span>Zuletzt bearbeitet: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>` : ''}
                         </div>
+                    </header>
+                    <div class="article-content ql-editor">
+                        ${article.content || ''}
                     </div>
-                    <div class="article-content">${article.content}</div>
-                    <div class="article-meta">
-                        <p>Erstellt von: ${article.author}</p>
-                        ${article.lastEditor ? `<p>Zuletzt bearbeitet von: ${article.lastEditor}</p>` : ''}
-                        <p>Zuletzt aktualisiert: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</p>
+                    <div class="article-actions">
+                        <a href="/edit/${article.id}" class="edit-button">Bearbeiten</a>
+                        <a href="/" class="back-button">Zurück zur Übersicht</a>
                     </div>
-                </div>
+                </article>
             `;
         })
         .catch(error => {
-            console.error('Error loading article:', error);
-            articlesContainer.innerHTML = '<div class="error">Artikel konnte nicht geladen werden.</div>';
+            console.error('Error:', error);
+            container.innerHTML = '<p>Fehler beim Laden des Artikels</p>';
         });
+}
+
+// Load random article
+async function loadRandomArticle() {
+    try {
+        const response = await fetch('/api/articles/random');
+        if (response.ok) {
+            const article = await response.json();
+            window.location.href = `/article/${article.id}`;
+        } else {
+            alert('Fehler beim Laden eines zufälligen Artikels');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Fehler beim Laden eines zufälligen Artikels');
+    }
+}
+
+// Load recent articles
+async function loadRecentArticles() {
+    try {
+        const response = await fetch('/api/articles/recent');
+        if (response.ok) {
+            const articles = await response.json();
+            displayArticles(articles);
+        } else {
+            alert('Fehler beim Laden der letzten Artikel');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Fehler beim Laden der letzten Artikel');
+    }
+}
+
+// Search articles
+async function searchArticles() {
+    const searchInput = document.getElementById('searchInput');
+    const query = searchInput.value.trim();
+    
+    if (!query) {
+        alert('Bitte geben Sie einen Suchbegriff ein');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/articles/search?q=${encodeURIComponent(query)}`);
+        if (response.ok) {
+            const articles = await response.json();
+            displayArticles(articles);
+        } else {
+            alert('Fehler bei der Suche');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Fehler bei der Suche');
+    }
 }
 
 // Display articles in the grid
 function displayArticles(articles) {
-    const articlesContainer = document.getElementById('articles');
-    if (!articlesContainer) return;
+    const container = document.getElementById('articles');
+    if (!container) return;
 
-    articlesContainer.innerHTML = '';
-    
     if (articles.length === 0) {
-        articlesContainer.innerHTML = '<p class="no-articles">Keine Artikel gefunden.</p>';
+        container.innerHTML = '<p>Keine Artikel gefunden.</p>';
         return;
     }
 
-    articles.forEach(article => {
-        const articleElement = document.createElement('div');
-        articleElement.className = 'article-tile';
-        
-        const truncatedContent = article.content.length > 150 
-            ? article.content.substring(0, 150) + '...' 
-            : article.content;
-
-        articleElement.innerHTML = `
-            <div class="article-header">
-                <h2>${article.title}</h2>
+    container.innerHTML = articles.map(article => `
+        <article class="article-preview">
+            <h2>${article.title}</h2>
+            <div class="article-meta">
+                <span>Autor: ${article.author || 'Unbekannt'}</span>
+                <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
             </div>
-            <div class="article-preview">${truncatedContent}</div>
-            <div class="article-footer">
-                <div class="article-meta">
-                    <span class="article-author"><i class="fas fa-user"></i> ${article.author}</span>
-                    <span class="article-date"><i class="fas fa-clock"></i> ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>
-                </div>
-                <button onclick="window.location.href='/article/${article._id}'" class="read-more-button">
-                    <i class="fas fa-arrow-right"></i> Weiterlesen
-                </button>
+            <div class="article-actions">
+                <a href="/article/${article.id}" class="read-button"><i class="fas fa-book-open"></i> Lesen</a>
             </div>
-        `;
-        
-        // Add click handler to the entire tile
-        articleElement.addEventListener('click', (e) => {
-            if (!e.target.closest('button')) {
-                window.location.href = `/article/${article._id}`;
-            }
-        });
-        
-        articlesContainer.appendChild(articleElement);
-    });
+        </article>
+    `).join('');
 }
 
-// Search functionality
-function searchArticles() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    if (!searchTerm.trim()) {
-        loadArticles();
-        return;
-    }
-
-    fetch('/api/articles')
-        .then(response => response.json())
-        .then(articles => {
-            const filteredArticles = articles.filter(article => {
-                const title = article.title.toLowerCase();
-                const content = article.content.toLowerCase();
-                const author = article.author.toLowerCase();
-                
-                return title.includes(searchTerm) || 
-                       content.includes(searchTerm) ||
-                       author.includes(searchTerm);
-            });
-            
-            displayArticles(filteredArticles);
-            
-            // Update UI to show search results
-            const articlesContainer = document.getElementById('articles');
-            if (filteredArticles.length === 0) {
-                articlesContainer.innerHTML = `
-                    <div class="no-results">
-                        <p>Keine Ergebnisse für "${searchTerm}" gefunden.</p>
-                        <button onclick="loadArticles()" class="btn">
-                            <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
-                        </button>
-                    </div>
-                `;
-            }
-        })
-        .catch(error => {
-            console.error('Error searching articles:', error);
-            alert('Fehler bei der Suche. Bitte versuchen Sie es erneut.');
-        });
-}
-
-// Add search on enter key
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchArticles();
-            }
-        });
-    }
-});
-
-// Initialize everything when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    const path = window.location.pathname;
-    
-    if (path === '/create') {
-        initializeCreateForm();
-    } else if (path.startsWith('/edit/')) {
-        const articleId = path.split('/')[2];
-        initializeEditForm(articleId);
-    } else if (path.startsWith('/article/')) {
-        const articleId = path.split('/')[2];
-        loadArticle(articleId);
-    } else if (path === '/help') {
-        loadHelpPage();
-    } else {
-        loadArticles();
-    }
-});
-
-// Function to load help page
-function loadHelpPage() {
-    const container = document.querySelector('.container');
-    container.innerHTML = `
-        <div class="help-page">
-            <h1>Hilfe & Anleitung</h1>
-            <section>
-                <h2>Navigation</h2>
-                <ul>
-                    <li><strong>Startseite:</strong> Zeigt alle verfügbaren Artikel an</li>
-                    <li><strong>Neuer Artikel:</strong> Erstellt einen neuen Wiki-Artikel</li>
-                    <li><strong>Letzte 30 Tage:</strong> Zeigt kürzlich erstellte oder bearbeitete Artikel</li>
-                    <li><strong>Zufälliger Artikel:</strong> Öffnet einen zufälligen Artikel</li>
-                </ul>
-            </section>
-            <section>
-                <h2>Artikel bearbeiten</h2>
-                <ul>
-                    <li>Klicken Sie auf den "Bearbeiten" Button innerhalb eines Artikels</li>
-                    <li>Nutzen Sie den Rich-Text-Editor für die Formatierung</li>
-                    <li>Speichern Sie Ihre Änderungen mit "Speichern"</li>
-                </ul>
-            </section>
-        </div>
-    `;
-}
-
-// Handle navigation
-function handleNavigation() {
+// Initialize based on current page
+document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     
     if (path === '/') {
         loadArticles();
+    } else if (path.startsWith('/article/')) {
+        const articleId = path.split('/').pop();
+        loadArticle(articleId);
+    } else if (path.startsWith('/edit/')) {
+        const articleId = path.split('/').pop();
+        initializeEditForm(articleId);
     } else if (path === '/create') {
         initializeCreateForm();
-    } else if (path.startsWith('/edit/')) {
-        const articleId = path.split('/')[2];
-        initializeEditForm(articleId);
-    } else if (path.startsWith('/article/')) {
-        const articleId = path.split('/')[2];
-        loadArticle(articleId);
-    } else if (path === '/recent') {
-        loadRecentArticles();
-    } else if (path === '/random') {
-        loadRandomArticle();
-    } else if (path === '/help') {
-        loadHelpPage();
-    } else {
-        loadArticles();
     }
-}
-
-// Add event listeners for navigation
-document.querySelectorAll('nav a').forEach(link => {
-    link.addEventListener('click', (e) => {
-        if (!link.getAttribute('href').startsWith('http')) {
-            e.preventDefault();
-            const href = link.getAttribute('href');
-            history.pushState(null, '', href);
-            handleNavigation();
-        }
-    });
 });
-
-// Handle browser back/forward buttons
-window.addEventListener('popstate', handleNavigation);
