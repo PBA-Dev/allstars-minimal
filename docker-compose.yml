@@ -17,7 +17,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - /root/allstars-minimal/data/articles:/app/articles
+      - /root/allstars-minimal/public/data/articles:/app/articles
       - wiki_uploads:/app/public/uploads
     environment:
       - NODE_ENV=production
