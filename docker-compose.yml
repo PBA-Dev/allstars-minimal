@@ -17,12 +17,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - type: volume
-        source: wiki_articles
-        target: /app/articles
-      - type: volume
-        source: wiki_uploads
-        target: /app/public/uploads
+      - ./articles:/app/articles
+      - wiki_uploads:/app/public/uploads
     depends_on:
       - mongodb
     networks:
@@ -35,8 +31,6 @@ networks:
 
 volumes:
   mongodb_data:
-    driver: local
-  wiki_articles:
     driver: local
   wiki_uploads:
     driver: local

@@ -10,7 +10,10 @@ RUN npm install
 RUN mkdir -p /app/articles /app/public/uploads && \
     chown -R node:node /app
 
-# Copy application files
+# Copy articles first to ensure they exist
+COPY articles/*.json /app/articles/
+
+# Copy remaining application files
 COPY . .
 
 # Ensure all files are owned by node user
