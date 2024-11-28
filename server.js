@@ -39,11 +39,25 @@ const upload = multer({
 
 // Create articles directory if it doesn't exist
 const articlesDir = path.join(__dirname, 'articles');
+console.log('Articles directory path:', articlesDir);
+
 if (!fs.existsSync(articlesDir)) {
-    fs.mkdirSync(articlesDir);
-    console.log('Created articles directory');
+    try {
+        fs.mkdirSync(articlesDir, { recursive: true });
+        console.log('Created articles directory');
+    } catch (err) {
+        console.error('Error creating articles directory:', err);
+    }
 } else {
     console.log('Articles directory exists');
+}
+
+// List all files in articles directory
+try {
+    const files = fs.readdirSync(articlesDir);
+    console.log('Files in articles directory:', files);
+} catch (err) {
+    console.error('Error listing files:', err);
 }
 
 // Initialize articles if directory is empty

@@ -17,8 +17,14 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./articles:/app/articles
-      - wiki_uploads:/app/public/uploads
+      - type: bind
+        source: ./articles
+        target: /app/articles
+      - type: volume
+        source: wiki_uploads
+        target: /app/public/uploads
+    environment:
+      - NODE_ENV=production
     depends_on:
       - mongodb
     networks:
