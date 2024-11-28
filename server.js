@@ -51,7 +51,7 @@ const upload = multer({
 });
 
 // Create articles directory if it doesn't exist
-const articlesDir = path.join(__dirname, 'data', 'articles');
+const articlesDir = path.join(__dirname, 'public', 'data', 'articles');
 console.log('Articles directory path:', articlesDir);
 
 if (!fs.existsSync(articlesDir)) {

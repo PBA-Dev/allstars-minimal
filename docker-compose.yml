@@ -17,7 +17,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data/articles:/app/data/articles
+      - ./public/data/articles:/app/public/data/articles
       - wiki_uploads:/app/public/uploads
     environment:
       - NODE_ENV=production
