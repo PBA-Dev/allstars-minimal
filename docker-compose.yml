@@ -17,20 +17,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - type: bind
-        source: ./articles
-        target: /app/articles
-        bind:
-          create_host_path: true
-      - type: volume
-        source: wiki_uploads
-        target: /app/public/uploads
+      - /root/allstars-minimal/data/articles:/app/articles
+      - wiki_uploads:/app/public/uploads
     environment:
       - NODE_ENV=production
-    command: >
-      sh -c "chown -R node:node /app/articles &&
-             chmod -R 755 /app/articles &&
-             node server.js"
     depends_on:
       - mongodb
     networks:

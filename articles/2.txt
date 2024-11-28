@@ -1,7 +1,0 @@
-Test Article 2
-
-This is another test article showing how multiple articles can be stored.
-
-The server will read these files dynamically and serve them through the API.
-
-Each article is identified by its filename (without the .txt extension).

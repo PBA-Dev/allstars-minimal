@@ -6,17 +6,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Create directories with proper permissions
-RUN mkdir -p /app/articles /app/public/uploads && \
-    chown -R node:node /app && \
-    chmod -R 755 /app
+# Create directories
+RUN mkdir -p /app/articles /app/public/uploads
 
 # Copy application files
-COPY --chown=node:node . .
+COPY . .
 
-# Ensure all files are owned by node user
+# Set permissions for node user
 RUN chown -R node:node /app && \
-    chmod -R 755 /app/articles /app/public/uploads
+    chmod -R 755 /app && \
+    chmod -R 777 /app/articles /app/public/uploads
 
 # Switch to non-root user
 USER node

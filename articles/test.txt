@@ -1,7 +1,0 @@
-Test Artikel-edit
-
-Test
-
-Dies ist ein Test-Artikel.
-
-Der Artikel wird verwendet, um die Speicherfunktion zu testen.
