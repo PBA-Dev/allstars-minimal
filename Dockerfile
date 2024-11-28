@@ -8,14 +8,15 @@ RUN npm install
 
 # Create directories with proper permissions
 RUN mkdir -p /app/articles /app/public/uploads && \
-    chown -R node:node /app
+    chown -R node:node /app && \
+    chmod -R 755 /app
 
 # Copy application files
-COPY . .
+COPY --chown=node:node . .
 
 # Ensure all files are owned by node user
 RUN chown -R node:node /app && \
-    chmod -R 755 /app/articles
+    chmod -R 755 /app/articles /app/public/uploads
 
 # Switch to non-root user
 USER node

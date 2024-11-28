@@ -6,10 +6,23 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const port = 3000;
+const productionDomain = 'https://wiki.optimumpflege.de';
 
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
+
+// Add CORS headers for production
+app.use((req, res, next) => {
+    const allowedOrigins = ['http://localhost:3000', productionDomain];
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+});
 
 // Configure multer for image upload
 const storage = multer.diskStorage({
@@ -446,5 +459,8 @@ app.get('/help', (req, res) => {
 });
 
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on http://0.0.0.0:${port}`);
+    console.log(`Server is running on port ${port}`);
+    if (process.env.NODE_ENV === 'production') {
+        console.log(`Production domain: ${productionDomain}`);
+    }
 });
