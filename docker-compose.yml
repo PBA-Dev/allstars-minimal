@@ -13,11 +13,16 @@ services:
   wiki:
     build: .
     container_name: allstars-wiki-minimal
+    user: "node"
     ports:
       - "3000:3000"
     volumes:
-      - wiki_articles:/app/articles
-      - wiki_uploads:/app/public/uploads
+      - type: volume
+        source: wiki_articles
+        target: /app/articles
+      - type: volume
+        source: wiki_uploads
+        target: /app/public/uploads
     depends_on:
       - mongodb
     networks:

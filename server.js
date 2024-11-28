@@ -41,12 +41,96 @@ const upload = multer({
 const articlesDir = path.join(__dirname, 'articles');
 if (!fs.existsSync(articlesDir)) {
     fs.mkdirSync(articlesDir);
+    console.log('Created articles directory');
+} else {
+    console.log('Articles directory exists');
 }
+
+// Initialize articles if directory is empty
+fs.readdir(articlesDir, (err, files) => {
+    if (err) {
+        console.error('Error reading articles directory:', err);
+        return;
+    }
+
+    // Only initialize if no JSON files exist
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+    if (jsonFiles.length === 0) {
+        console.log('No existing articles found, copying initial articles...');
+        const initialArticles = [
+            {
+                title: "Die Zukunft der Pflegeberatung",
+                content: "<p>Die Digitalisierung eröffnet neue Möglichkeiten für die Pflegeberatung. Online-Seminare und digitale Plattformen erweitern die Reichweite und Effizienz der Beratungsdienste.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            },
+            {
+                title: "Pflegegrade und deren Bedeutung",
+                content: "<p>Eine detaillierte Erklärung der verschiedenen Pflegegrade und ihrer Bedeutung für die Versorgung.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            },
+            {
+                title: "Unterstützung bei der häuslichen Pflege",
+                content: "<p>Praktische Tipps und Ressourcen für die häusliche Pflege von Angehörigen.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            },
+            {
+                title: "Prävention und Gesundheitsförderung für Pflegebedürftige",
+                content: "<p>Wichtige Maßnahmen zur Prävention und Gesundheitsförderung in der Pflege.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            },
+            {
+                title: "Selbsthilfegruppen für pflegende Angehörige",
+                content: "<p>Informationen über Selbsthilfegruppen und Unterstützungsnetzwerke für pflegende Angehörige.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            },
+            {
+                title: "Pflegeversicherung – Was sie leistet und wie man sie nutzt",
+                content: "<p>Ein umfassender Überblick über die Leistungen der Pflegeversicherung und deren Nutzung.</p>",
+                author: "Verena Campbell",
+                createdAt: "2024-11-27T09:07:59.509Z",
+                updatedAt: "2024-11-27T09:07:59.509Z"
+            }
+        ];
+
+        initialArticles.forEach((article, index) => {
+            const id = `173270567950${index + 1}`;
+            fs.writeFileSync(
+                path.join(articlesDir, `${id}.json`),
+                JSON.stringify(article, null, 2)
+            );
+        });
+        console.log('Initial articles created successfully');
+    } else {
+        console.log(`Found ${jsonFiles.length} existing articles`);
+    }
+});
+
+// Log the contents of the articles directory
+fs.readdir(articlesDir, (err, files) => {
+    if (err) {
+        console.error('Error reading articles directory:', err);
+    } else {
+        console.log('Articles directory contents:', files);
+    }
+});
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Created uploads directory');
+} else {
+    console.log('Uploads directory exists');
 }
 
 // API endpoints
