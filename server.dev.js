@@ -104,8 +104,9 @@ app.post('/api/articles', async (req, res) => {
             return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
+        const articleId = Date.now().toString();
         const newArticle = {
-            _id: Date.now().toString(),
+            _id: articleId,  // Use _id consistently
             title,
             content,
             author,
@@ -126,7 +127,7 @@ app.post('/api/articles', async (req, res) => {
         }
 
         // Save to file
-        const articlePath = path.join(articlesDir, `${newArticle._id}.json`);
+        const articlePath = path.join(articlesDir, `${articleId}.json`);
         console.log('Saving article to:', articlePath);
         await fs.writeFile(articlePath, JSON.stringify(newArticle, null, 2));
 
@@ -142,7 +143,7 @@ app.post('/api/articles', async (req, res) => {
             }
             
             history.push({
-                _id: newArticle._id,
+                _id: articleId,
                 title: newArticle.title,
                 createdAt: newArticle.createdAt
             });
@@ -153,7 +154,7 @@ app.post('/api/articles', async (req, res) => {
             console.error('Error updating article history:', historyError);
         }
 
-        console.log('Article saved successfully:', newArticle._id);
+        console.log('Article saved successfully:', newArticle);
         res.status(201).json(newArticle);
     } catch (error) {
         console.error('Error creating article:', error);

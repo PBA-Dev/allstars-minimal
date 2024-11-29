@@ -81,6 +81,12 @@ async function saveArticle() {
             throw new Error(responseData.error || 'Failed to save article');
         }
 
+        if (!responseData._id) {
+            console.error('No _id in response:', responseData);
+            throw new Error('Invalid server response: missing article ID');
+        }
+
+        console.log('Redirecting to:', `/article/${responseData._id}`);
         window.location.href = `/article/${responseData._id}`;
     } catch (error) {
         console.error('Error saving article:', error);
