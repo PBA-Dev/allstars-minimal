@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsPromises = require('fs').promises;
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
@@ -171,14 +172,14 @@ if (!fs.existsSync(uploadsDir)) {
 app.get('/api/articles', async (req, res) => {
     try {
         const { category } = req.query;
-        const files = await fs.readdir(articlesDir);
+        const files = await fsPromises.readdir(articlesDir);
         console.log('Articles directory contents:', files);
 
         const articles = await Promise.all(
             files
                 .filter(file => file.endsWith('.json'))
                 .map(async file => {
-                    const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                    const content = await fsPromises.readFile(path.join(articlesDir, file), 'utf8');
                     const article = JSON.parse(content);
                     return {
                         id: file.replace('.json', ''),
@@ -371,7 +372,10 @@ app.post('/api/articles', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
 
-        await fs.writeFile(path.join(articlesDir, `${articleId}.json`), JSON.stringify(article, null, 2));
+        await fsPromises.writeFile(
+            path.join(articlesDir, `${articleId}.json`),
+            JSON.stringify(article, null, 2)
+        );
         console.log(`Created new article: ${articleId}`);
         res.json({ id: articleId, ...article });
     } catch (error) {
@@ -387,7 +391,9 @@ app.put('/api/articles/:id', async (req, res) => {
         const { title, content, author, category } = req.body;
         const articlePath = path.join(articlesDir, `${id}.json`);
         
-        const existingArticle = JSON.parse(await fs.readFile(articlePath, 'utf8'));
+        const existingArticle = JSON.parse(
+            await fsPromises.readFile(articlePath, 'utf8')
+        );
         const updatedArticle = {
             ...existingArticle,
             title,
@@ -397,7 +403,10 @@ app.put('/api/articles/:id', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
 
-        await fs.writeFile(articlePath, JSON.stringify(updatedArticle, null, 2));
+        await fsPromises.writeFile(
+            articlePath,
+            JSON.stringify(updatedArticle, null, 2)
+        );
         console.log(`Updated article: ${id}`);
         res.json(updatedArticle);
     } catch (error) {
