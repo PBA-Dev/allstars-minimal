@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const port = 3000;
-const productionDomain = 'https://wiki.optimumpflege.de';
+const productionDomain = 'https://wiki.pflegeberatung-allstars.de';
 
 // Routes for serving HTML pages - Must be before API routes
 app.get('/', (req, res) => {

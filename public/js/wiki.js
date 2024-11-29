@@ -577,28 +577,46 @@ async function handleMediaUpload(quill, type) {
     };
 }
 
-// Add styles for category elements
+// Add styles for category elements and media
 const style = document.createElement('style');
 style.textContent = `
     .category-tag {
-        background: #e9ecef;
-        padding: 2px 8px;
-        border-radius: 12px;
+        display: inline-block;
+        padding: 4px 8px;
+        margin: 4px;
+        border-radius: 4px;
+        background-color: #e9ecef;
+        color: #495057;
         font-size: 0.9em;
-        margin: 0 8px;
     }
-    #category {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 16px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+    
+    /* Limit size of images and videos in editor and article view */
+    .ql-editor img, 
+    .article-content img {
+        max-width: 600px !important;
+        max-height: 600px !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
     }
-    #categoryFilter {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        min-width: 200px;
+    
+    .ql-editor video,
+    .article-content video {
+        max-width: 600px !important;
+        max-height: 600px !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+    }
+    
+    /* Ensure media is responsive on smaller screens */
+    @media (max-width: 768px) {
+        .ql-editor img,
+        .ql-editor video,
+        .article-content img,
+        .article-content video {
+            max-width: 100% !important;
+        }
     }
 `;
 document.head.appendChild(style);
