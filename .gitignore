@@ -1,4 +1,21 @@
+# Node modules
 node_modules/
+
+# Environment variables
 .env
+
+# Logs
 *.log
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
 .DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Uploads directory
+public/uploads/*
+!public/uploads/.gitkeep
