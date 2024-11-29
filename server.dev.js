@@ -181,37 +181,70 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+        fileSize: 25 * 1024 * 1024 // 25MB limit (will be checked per file type in fileFilter)
     },
     fileFilter: function (req, file, cb) {
-        // Accept images only
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
-            return cb(new Error('Only image files are allowed!'), false);
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+            // For images: 10MB limit
+            if (parseInt(req.headers['content-length']) > 10 * 1024 * 1024) {
+                cb(new Error('Image files must be less than 10MB'), false);
+                return;
+            }
+            // Accept only specific image formats
+            if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+                cb(new Error('Only JPG, JPEG, PNG, and GIF images are allowed'), false);
+                return;
+            }
+        } else if (file.mimetype.startsWith('video/')) {
+            // For videos: 25MB limit
+            if (parseInt(req.headers['content-length']) > 25 * 1024 * 1024) {
+                cb(new Error('Video files must be less than 25MB'), false);
+                return;
+            }
+            // Accept only specific video formats
+            if (!file.originalname.match(/\.(mp4|webm|ogg)$/i)) {
+                cb(new Error('Only MP4, WebM, and OGG videos are allowed'), false);
+                return;
+            }
+        } else {
+            cb(new Error('Only image and video files are allowed'), false);
+            return;
         }
         cb(null, true);
     }
-}).single('image');
+}).single('file'); // Changed from 'image' to 'file' to handle both images and videos
 
-// Image upload endpoint
+// File upload endpoint
 app.post('/api/upload', (req, res) => {
-    upload(req, res, function (err) {
-        if (err) {
-            console.error('Error uploading file:', err);
-            return res.status(400).json({ 
-                error: err instanceof multer.MulterError 
-                    ? 'File too large (max 5MB)' 
-                    : err.message 
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    fs.mkdir(uploadsDir, { recursive: true })
+        .then(() => {
+            upload(req, res, function (err) {
+                if (err) {
+                    console.error('Error uploading file:', err);
+                    return res.status(400).json({ 
+                        error: err instanceof multer.MulterError 
+                            ? 'File upload error: ' + err.message
+                            : err.message || 'Invalid file type or size'
+                    });
+                }
+                
+                if (!req.file) {
+                    return res.status(400).json({ error: 'No file uploaded' });
+                }
+                
+                // Return the URL and type of the uploaded file
+                const fileUrl = `/uploads/${req.file.filename}`;
+                const fileType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+                res.json({ url: fileUrl, type: fileType });
             });
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-
-        // Return the URL of the uploaded file
-        const fileUrl = `/uploads/${req.file.filename}`;
-        res.json({ url: fileUrl });
-    });
+        })
+        .catch(err => {
+            console.error('Error creating uploads directory:', err);
+            res.status(500).json({ error: 'Server error while handling upload' });
+        });
 });
 
 app.get('/api/articles/:id/history', (req, res) => {
@@ -245,16 +278,31 @@ app.get('/api/search', async (req, res) => {
                 .filter(file => file.endsWith('.json') && file !== 'article_history.json')
                 .map(async file => {
                     const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
-                    return JSON.parse(content);
+                    const article = JSON.parse(content);
+                    return {
+                        _id: file.replace('.json', ''),
+                        ...article
+                    };
                 })
         );
 
-        const searchResults = articles.filter(article => 
-            article.title?.toLowerCase().includes(query) ||
-            article.content?.toLowerCase().includes(query) ||
-            article.author?.toLowerCase().includes(query) ||
-            article.category?.toLowerCase().includes(query)
-        );
+        // Search in title, content, and author
+        const searchResults = articles.filter(article => {
+            const titleMatch = article.title?.toLowerCase().includes(query);
+            const contentMatch = article.content?.toLowerCase().includes(query);
+            const authorMatch = article.author?.toLowerCase().includes(query);
+            const categoryMatch = article.category?.toLowerCase().includes(query);
+            return titleMatch || contentMatch || authorMatch || categoryMatch;
+        });
+
+        // Sort by relevance (title matches first, then content)
+        searchResults.sort((a, b) => {
+            const aTitle = a.title?.toLowerCase().includes(query);
+            const bTitle = b.title?.toLowerCase().includes(query);
+            if (aTitle && !bTitle) return -1;
+            if (!aTitle && bTitle) return 1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
 
         res.json(searchResults);
     } catch (error) {
@@ -276,11 +324,15 @@ app.get('/api/random', async (req, res) => {
             return res.status(404).json({ error: 'No articles found' });
         }
 
+        // Select a random article
         const randomFile = articleFiles[Math.floor(Math.random() * articleFiles.length)];
         const content = await fs.readFile(path.join(articlesDir, randomFile), 'utf8');
         const article = JSON.parse(content);
 
-        res.json(article);
+        res.json({
+            _id: randomFile.replace('.json', ''),
+            ...article
+        });
     } catch (error) {
         console.error('Error getting random article:', error);
         res.status(500).json({ error: 'Failed to get random article' });
@@ -297,7 +349,11 @@ app.get('/api/recent', async (req, res) => {
                 .filter(file => file.endsWith('.json') && file !== 'article_history.json')
                 .map(async file => {
                     const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
-                    return JSON.parse(content);
+                    const article = JSON.parse(content);
+                    return {
+                        _id: file.replace('.json', ''),
+                        ...article
+                    };
                 })
         );
 

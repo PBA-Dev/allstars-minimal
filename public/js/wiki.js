@@ -3,44 +3,69 @@ let quill;
 
 // Initialize Quill editor with default options
 function initializeQuill(containerId) {
+    // Add video handler to Quill
+    const VideoBlot = Quill.import('formats/video');
+    class CustomVideo extends VideoBlot {
+        static create(value) {
+            const node = super.create(value);
+            node.setAttribute('controls', true);
+            node.setAttribute('width', '100%');
+            return node;
+        }
+    }
+    Quill.register('formats/video', CustomVideo);
+
     quill = new Quill(containerId, {
         theme: 'snow',
         placeholder: 'Schreiben Sie hier Ihren Artikel...',
         modules: {
-            toolbar: [
-                // Text formatting
-                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                [{ 'font': [] }],
-                [{ 'size': ['small', false, 'large', 'huge'] }],
-                
-                // Text styling
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                
-                // Text alignment
-                [{ 'align': [] }],
-                
-                // Lists and indentation
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'indent': '-1'}, { 'indent': '+1' }],
-                
-                // Special formatting
-                [{ 'script': 'sub'}, { 'script': 'super' }],
-                ['blockquote', 'code-block'],
-                
-                // Media and links
-                ['link', 'image', 'video'],
-                
-                // Clear formatting
-                ['clean']
-            ]
+            toolbar: {
+                container: [
+                    // Text formatting
+                    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                    [{ 'font': [] }],
+                    [{ 'size': ['small', false, 'large', 'huge'] }],
+                    
+                    // Text styling
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'color': [] }, { 'background': [] }],
+                    
+                    // Text alignment
+                    [{ 'align': [] }],
+                    
+                    // Lists and indentation
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'indent': '-1'}, { 'indent': '+1' }],
+                    
+                    // Special formatting
+                    [{ 'script': 'sub'}, { 'script': 'super' }],
+                    ['blockquote', 'code-block'],
+                    
+                    // Media and links
+                    ['link', 'image', 'video'],
+                    
+                    // Clear formatting
+                    ['clean']
+                ],
+                handlers: {
+                    'image': function() {
+                        handleMediaUpload(quill, 'image');
+                    },
+                    'video': function() {
+                        handleMediaUpload(quill, 'video');
+                    }
+                }
+            }
         }
     });
     
-    // Add image upload handler
+    // Add media upload handler
     const toolbar = quill.getModule('toolbar');
     toolbar.addHandler('image', () => {
-        handleImageUpload(quill);
+        handleMediaUpload(quill, 'image');
+    });
+    toolbar.addHandler('video', () => {
+        handleMediaUpload(quill, 'video');
     });
     
     return quill;
@@ -114,16 +139,29 @@ async function saveArticle() {
 async function loadRandomArticle() {
     try {
         const response = await fetch('/api/random');
+        const responseText = await response.text();
+        console.log('Raw random article response:', responseText);
+
+        let article;
+        try {
+            article = JSON.parse(responseText);
+            console.log('Parsed random article data:', article);
+        } catch (e) {
+            console.error('Failed to parse random article response as JSON:', e);
+            throw new Error('Server returned invalid JSON');
+        }
+
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to get random article');
+            throw new Error(article.error || 'Failed to get random article');
         }
-        const article = await response.json();
-        if (article && article._id) {
-            window.location.href = `/article/${article._id}`;
-        } else {
-            throw new Error('Invalid article data received');
+
+        const id = article._id || article.id;
+        if (!id) {
+            console.error('Random article missing ID:', article);
+            throw new Error('Invalid article data: missing ID');
         }
+
+        window.location.href = `/article/${id}`;
     } catch (error) {
         console.error('Error loading random article:', error);
         alert('Fehler beim Laden eines zufälligen Artikels: ' + error.message);
@@ -279,12 +317,27 @@ async function loadArticle(articleId) {
 async function loadRecentArticles() {
     try {
         const response = await fetch('/api/recent');
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to get recent articles');
+        const responseText = await response.text();
+        console.log('Raw recent articles response:', responseText);
+
+        let articles;
+        try {
+            articles = JSON.parse(responseText);
+            console.log('Parsed recent articles data:', articles);
+        } catch (e) {
+            console.error('Failed to parse recent articles response as JSON:', e);
+            throw new Error('Server returned invalid JSON');
         }
-        
-        const articles = await response.json();
+
+        if (!response.ok) {
+            throw new Error(articles.error || 'Failed to get recent articles');
+        }
+
+        if (!Array.isArray(articles)) {
+            console.error('Expected articles to be an array:', articles);
+            throw new Error('Invalid response: expected array of articles');
+        }
+
         displayArticles(articles);
     } catch (error) {
         console.error('Error loading recent articles:', error);
@@ -419,37 +472,97 @@ function initializeCreateForm() {
     };
 }
 
-// Handle image upload
-async function handleImageUpload(quill) {
+// Handle media upload (images and videos)
+async function handleMediaUpload(quill, type) {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
+    
+    // Set accept attribute based on type
+    if (type === 'image') {
+        input.setAttribute('accept', 'image/jpeg,image/png,image/gif');
+    } else if (type === 'video') {
+        input.setAttribute('accept', 'video/mp4,video/webm,video/ogg');
+    }
+    
     input.click();
 
     input.onchange = async () => {
-        const file = input.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('image', file);
-
         try {
+            const file = input.files[0];
+            if (!file) {
+                throw new Error('Keine Datei ausgewählt');
+            }
+
+            const isImage = file.type.startsWith('image/');
+            const isVideo = file.type.startsWith('video/');
+
+            // Validate file type matches requested type
+            if (type === 'image' && !isImage) {
+                throw new Error('Bitte wählen Sie eine Bilddatei aus');
+            }
+            if (type === 'video' && !isVideo) {
+                throw new Error('Bitte wählen Sie eine Videodatei aus');
+            }
+
+            // Check file size
+            if (isImage && file.size > 10 * 1024 * 1024) {
+                throw new Error('Bilder dürfen maximal 10MB groß sein');
+            }
+            if (isVideo && file.size > 25 * 1024 * 1024) {
+                throw new Error('Videos dürfen maximal 25MB groß sein');
+            }
+
+            // Show upload progress
+            const range = quill.getSelection(true);
+            const placeholder = type === 'image' ? '⌛ Bild wird hochgeladen...' : '⌛ Video wird hochgeladen...';
+            quill.insertText(range.index, placeholder);
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('file', file);
+
+            console.log(`Uploading ${type}:`, file.name);
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to upload image');
+            const responseText = await response.text();
+            console.log('Raw upload response:', responseText);
+
+            // Remove placeholder
+            quill.deleteText(range.index, placeholder.length);
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+                console.log('Parsed upload response:', result);
+            } catch (e) {
+                console.error('Failed to parse upload response as JSON:', e);
+                throw new Error('Server returned invalid JSON');
             }
 
-            const result = await response.json();
-            const range = quill.getSelection(true);
-            quill.insertEmbed(range.index, 'image', result.url);
+            if (!response.ok) {
+                throw new Error(result.error || `Failed to upload ${type}`);
+            }
+
+            if (!result.url || !result.type) {
+                console.error('Upload response missing URL or type:', result);
+                throw new Error('Invalid server response: missing file information');
+            }
+
+            // Insert the appropriate embed based on file type
+            if (result.type === 'image') {
+                quill.insertEmbed(range.index, 'image', result.url);
+            } else if (result.type === 'video') {
+                quill.insertEmbed(range.index, 'video', result.url);
+            }
+
+            // Move cursor to next line
+            quill.setSelection(range.index + 1);
         } catch (error) {
-            console.error('Error uploading image:', error);
-            alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
+            console.error('Error uploading file:', error);
+            alert('Fehler beim Hochladen der Datei: ' + error.message);
         }
     };
 }
@@ -524,11 +637,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize search
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        let debounceTimeout;
+        let searchTimeout;
         searchInput.addEventListener('input', (e) => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                searchArticles(e.target.value);
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            // Debounce search to avoid too many requests
+            searchTimeout = setTimeout(() => {
+                searchArticles(query);
             }, 300);
         });
     }
@@ -570,22 +686,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Search articles
 async function searchArticles(query) {
-    if (!query.trim()) {
+    if (!query || query.length < 2) {
         return loadArticles();
     }
 
     try {
-        const categoryFilter = document.getElementById('categoryFilter');
-        const selectedCategory = categoryFilter ? categoryFilter.value : '';
-        
+        console.log('Searching for:', query);
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to search articles');
+        const responseText = await response.text();
+        console.log('Raw search response:', responseText);
+
+        let articles;
+        try {
+            articles = JSON.parse(responseText);
+            console.log('Parsed search results:', articles);
+        } catch (e) {
+            console.error('Failed to parse search response as JSON:', e);
+            throw new Error('Server returned invalid JSON');
         }
-        
-        const articles = await response.json();
+
+        if (!response.ok) {
+            throw new Error(articles.error || 'Failed to search articles');
+        }
+
+        if (!Array.isArray(articles)) {
+            console.error('Expected search results to be an array:', articles);
+            throw new Error('Invalid response: expected array of articles');
+        }
+
         displayArticles(articles);
+
+        // Update UI to show search results
+        const container = document.querySelector('.container');
+        if (container && articles.length > 0) {
+            const searchHeader = document.createElement('div');
+            searchHeader.className = 'search-header';
+            searchHeader.innerHTML = `
+                <h2>Suchergebnisse für "${query}"</h2>
+                <p>${articles.length} Artikel gefunden</p>
+                <button onclick="loadArticles()" class="btn btn-secondary">Alle Artikel anzeigen</button>
+            `;
+            container.insertBefore(searchHeader, container.firstChild);
+        }
     } catch (error) {
         console.error('Error searching articles:', error);
         const container = document.querySelector('.container');
@@ -599,4 +741,19 @@ async function searchArticles(query) {
             `;
         }
     }
+}
+
+// Add search event listener
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        // Debounce search to avoid too many requests
+        searchTimeout = setTimeout(() => {
+            searchArticles(query);
+        }, 300);
+    });
 }
