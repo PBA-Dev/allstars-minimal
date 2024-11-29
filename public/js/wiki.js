@@ -57,12 +57,15 @@ async function saveArticle() {
     const category = document.getElementById('category').value;
     const content = quill.root.innerHTML.trim();
 
+    console.log('Saving article:', { title, author, category, contentLength: content.length });
+
     if (!title || !author || !category || !content) {
         alert('Bitte füllen Sie alle Pflichtfelder aus.');
         return;
     }
 
     try {
+        console.log('Making request to:', `/api/articles${isNewArticle ? '' : '/' + articleId}`);
         const response = await fetch(`/api/articles${isNewArticle ? '' : '/' + articleId}`, {
             method: isNewArticle ? 'POST' : 'PUT',
             headers: {
@@ -71,13 +74,14 @@ async function saveArticle() {
             body: JSON.stringify({ title, author, category, content })
         });
 
+        const responseData = await response.json();
+        console.log('Server response:', response.status, responseData);
+
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Failed to save article');
+            throw new Error(responseData.error || 'Failed to save article');
         }
 
-        const result = await response.json();
-        window.location.href = `/article/${result._id}`;
+        window.location.href = `/article/${responseData._id}`;
     } catch (error) {
         console.error('Error saving article:', error);
         alert('Fehler beim Speichern des Artikels: ' + error.message);

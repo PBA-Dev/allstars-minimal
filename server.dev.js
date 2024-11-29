@@ -97,8 +97,10 @@ app.get('/api/articles/:id', async (req, res) => {
 // Create new article
 app.post('/api/articles', async (req, res) => {
     try {
+        console.log('Received article creation request:', req.body);
         const { title, content, author, category } = req.body;
         if (!title || !content || !author || !category) {
+            console.log('Missing required fields:', { title, content: !!content, author, category });
             return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
@@ -114,29 +116,48 @@ app.post('/api/articles', async (req, res) => {
 
         // Ensure articles directory exists
         const articlesDir = path.join(__dirname, 'public', 'articles');
+        console.log('Articles directory path:', articlesDir);
         try {
             await fs.access(articlesDir);
+            console.log('Articles directory exists');
         } catch {
+            console.log('Creating articles directory');
             await fs.mkdir(articlesDir, { recursive: true });
         }
 
         // Save to file
         const articlePath = path.join(articlesDir, `${newArticle._id}.json`);
+        console.log('Saving article to:', articlePath);
         await fs.writeFile(articlePath, JSON.stringify(newArticle, null, 2));
 
-        // Create uploads directory for images if it doesn't exist
-        const uploadsDir = path.join(__dirname, 'public', 'uploads');
+        // Update article history
         try {
-            await fs.access(uploadsDir);
-        } catch {
-            await fs.mkdir(uploadsDir, { recursive: true });
+            const historyPath = path.join(articlesDir, 'article_history.json');
+            let history = [];
+            try {
+                const historyContent = await fs.readFile(historyPath, 'utf8');
+                history = JSON.parse(historyContent);
+            } catch (e) {
+                console.log('No existing history file, creating new one');
+            }
+            
+            history.push({
+                _id: newArticle._id,
+                title: newArticle.title,
+                createdAt: newArticle.createdAt
+            });
+            
+            await fs.writeFile(historyPath, JSON.stringify(history, null, 2));
+            console.log('Updated article history');
+        } catch (historyError) {
+            console.error('Error updating article history:', historyError);
         }
 
         console.log('Article saved successfully:', newArticle._id);
         res.status(201).json(newArticle);
     } catch (error) {
         console.error('Error creating article:', error);
-        res.status(500).json({ error: 'Failed to create article' });
+        res.status(500).json({ error: 'Failed to create article: ' + error.message });
     }
 });
 
