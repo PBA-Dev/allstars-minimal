@@ -524,14 +524,23 @@ async function handleMediaUpload(quill, type) {
             console.log(`Uploading ${type}:`, file.name);
             const response = await fetch('/api/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Upload error response:', errorText);
+                if (response.status === 413) {
+                    throw new Error('Die Datei ist zu groß. Maximale Größe: 10MB für Bilder, 25MB für Videos.');
+                }
+                throw new Error(`Upload fehlgeschlagen: ${response.statusText}`);
+            }
 
             const responseText = await response.text();
             console.log('Raw upload response:', responseText);
-
-            // Remove placeholder
-            quill.deleteText(range.index, placeholder.length);
 
             let result;
             try {
@@ -539,16 +548,17 @@ async function handleMediaUpload(quill, type) {
                 console.log('Parsed upload response:', result);
             } catch (e) {
                 console.error('Failed to parse upload response as JSON:', e);
-                throw new Error('Server returned invalid JSON');
-            }
-
-            if (!response.ok) {
-                throw new Error(result.error || `Failed to upload ${type}`);
+                throw new Error('Server-Antwort konnte nicht verarbeitet werden');
             }
 
             if (!result.url || !result.type) {
                 console.error('Upload response missing URL or type:', result);
-                throw new Error('Invalid server response: missing file information');
+                throw new Error('Ungültige Server-Antwort: Dateiinformationen fehlen');
+            }
+
+            // Remove placeholder if it exists
+            if (range && placeholder) {
+                quill.deleteText(range.index, placeholder.length);
             }
 
             // Insert the appropriate embed based on file type

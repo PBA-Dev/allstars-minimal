@@ -216,35 +216,51 @@ const upload = multer({
 }).single('file'); // Changed from 'image' to 'file' to handle both images and videos
 
 // File upload endpoint
-app.post('/api/upload', (req, res) => {
+app.post('/api/upload', async (req, res) => {
+    console.log('Received upload request');
+    console.log('Headers:', req.headers);
+    
     // Ensure uploads directory exists
     const uploadsDir = path.join(__dirname, 'public', 'uploads');
-    fs.mkdir(uploadsDir, { recursive: true })
-        .then(() => {
-            upload(req, res, function (err) {
-                if (err) {
-                    console.error('Error uploading file:', err);
+    try {
+        await fs.mkdir(uploadsDir, { recursive: true });
+        
+        upload(req, res, function (err) {
+            console.log('Processing upload...');
+            if (err) {
+                console.error('Upload error:', err);
+                if (err instanceof multer.MulterError) {
+                    console.error('Multer error:', err.code, err.field);
                     return res.status(400).json({ 
-                        error: err instanceof multer.MulterError 
-                            ? 'File upload error: ' + err.message
-                            : err.message || 'Invalid file type or size'
+                        error: `File upload error: ${err.message}`,
+                        code: err.code
                     });
                 }
-                
-                if (!req.file) {
-                    return res.status(400).json({ error: 'No file uploaded' });
-                }
-                
-                // Return the URL and type of the uploaded file
-                const fileUrl = `/uploads/${req.file.filename}`;
-                const fileType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
-                res.json({ url: fileUrl, type: fileType });
-            });
-        })
-        .catch(err => {
-            console.error('Error creating uploads directory:', err);
-            res.status(500).json({ error: 'Server error while handling upload' });
+                return res.status(400).json({ 
+                    error: err.message || 'Invalid file type or size',
+                    details: err.toString()
+                });
+            }
+            
+            if (!req.file) {
+                console.error('No file in request');
+                return res.status(400).json({ error: 'No file uploaded' });
+            }
+            
+            console.log('File uploaded successfully:', req.file);
+            
+            // Return the URL and type of the uploaded file
+            const fileUrl = `/uploads/${req.file.filename}`;
+            const fileType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+            res.json({ url: fileUrl, type: fileType });
         });
+    } catch (err) {
+        console.error('Server error during upload:', err);
+        res.status(500).json({ 
+            error: 'Server error while handling upload',
+            details: err.toString()
+        });
+    }
 });
 
 app.get('/api/articles/:id/history', (req, res) => {
