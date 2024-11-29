@@ -115,117 +115,72 @@ async function loadRandomArticle() {
     try {
         const response = await fetch('/api/random');
         if (!response.ok) {
-            throw new Error('Failed to get random article');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to get random article');
         }
         const article = await response.json();
-        if (!article || !article._id) {
-            console.error('Invalid article data received:', article);
+        if (article && article._id) {
+            window.location.href = `/article/${article._id}`;
+        } else {
             throw new Error('Invalid article data received');
         }
-        window.location.href = `/article/${article._id}`;
     } catch (error) {
         console.error('Error loading random article:', error);
-        alert('Fehler beim Laden eines zufälligen Artikels');
+        alert('Fehler beim Laden eines zufälligen Artikels: ' + error.message);
     }
 }
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Quill editor if we're on a page with an editor
-    const editorContainer = document.querySelector('#editor-container') || document.querySelector('#editor');
-    if (editorContainer) {
-        initializeQuill('#' + editorContainer.id);
-    }
-
-    // Check if we're on an article page
-    const path = window.location.pathname;
-    if (path.startsWith('/article/')) {
-        const articleId = path.split('/').pop();
-        loadArticle(articleId);
-    }
-    // Load articles on home page
-    else if (path === '/') {
-        loadArticles();
-
-        // Initialize category filter
+// Load all articles
+async function loadArticles(category = '') {
+    try {
         const categoryFilter = document.getElementById('categoryFilter');
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', () => {
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput.value.trim()) {
-                    searchArticles(searchInput.value);
-                } else {
-                    loadArticles();
-                }
-            });
+        const selectedCategory = category || (categoryFilter ? categoryFilter.value : '');
+        
+        const response = await fetch('/api/articles');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to load articles');
+        }
+        
+        let articles = await response.json();
+        console.log('Loaded articles:', articles);
+        
+        // Filter by category if selected
+        if (selectedCategory) {
+            articles = articles.filter(article => article.category === selectedCategory);
+            console.log('Filtered by category:', selectedCategory, articles);
+        }
+        
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Fehler beim Laden der Artikel</h2>
+                    <p>${error.message}</p>
+                    <button onclick="loadArticles()" class="btn btn-primary">Erneut versuchen</button>
+                </div>
+            `;
         }
     }
-
-    // Initialize event listeners
-    const randomArticleBtn = document.getElementById('randomArticle');
-    if (randomArticleBtn) {
-        randomArticleBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await loadRandomArticle();
-        });
-    }
-
-    // Initialize search
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        let debounceTimeout;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                searchArticles(e.target.value);
-            }, 300);
-        });
-    }
-
-    // Initialize recent articles
-    const recentArticlesBtn = document.getElementById('recentArticles');
-    if (recentArticlesBtn) {
-        recentArticlesBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                const response = await fetch('/api/recent');
-                if (!response.ok) throw new Error('Failed to get recent articles');
-                const articles = await response.json();
-                displayArticles(articles);
-            } catch (error) {
-                console.error('Error getting recent articles:', error);
-                alert('Fehler beim Laden der neuesten Artikel');
-            }
-        });
-    }
-
-    // Load article data if editing
-    const articleId = window.location.pathname.split('/').pop();
-    if (articleId !== 'create' && editorContainer) {
-        fetch(`/api/articles/${articleId}`)
-            .then(response => response.json())
-            .then(article => {
-                document.getElementById('title').value = article.title || '';
-                document.getElementById('editor-name').value = article.author || '';
-                document.getElementById('category').value = article.category || '';
-                quill.root.innerHTML = article.content || '';
-            })
-            .catch(error => {
-                console.error('Error loading article:', error);
-                alert('Fehler beim Laden des Artikels');
-            });
-    }
-});
+}
 
 // Display articles in the grid
 async function displayArticles(articles) {
     const container = document.querySelector('.container');
-    if (!container) return;
+    if (!container) {
+        console.error('Container element not found');
+        return;
+    }
 
     if (!Array.isArray(articles)) {
         console.error('Expected articles to be an array, got:', typeof articles);
         articles = [];
     }
+
+    console.log('Displaying articles:', articles);
 
     if (articles.length === 0) {
         container.innerHTML = '<div class="no-articles">Keine Artikel gefunden.</div>';
@@ -233,71 +188,21 @@ async function displayArticles(articles) {
     }
 
     container.innerHTML = articles
-        .filter(article => article && article._id && article.title) // Filter out invalid articles
-        .map(article => `
-            <article class="article-preview">
-                <h2><a href="/article/${article._id}">${article.title}</a></h2>
-                <div class="article-meta">
-                    <span>Autor: ${article.author || 'Unbekannt'}</span>
-                    <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
-                    <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-                </div>
-            </article>
-        `).join('');
-}
-
-// Load all articles
-async function loadArticles(category = '') {
-    try {
-        const categoryFilter = document.getElementById('categoryFilter');
-        const selectedCategory = categoryFilter ? categoryFilter.value : '';
-        
-        const response = await fetch('/api/articles');
-        if (!response.ok) {
-            throw new Error('Failed to load articles');
-        }
-        
-        let articles = await response.json();
-        
-        // Filter by category if selected
-        if (selectedCategory) {
-            articles = articles.filter(article => article.category === selectedCategory);
-        }
-        
-        displayArticles(articles);
-    } catch (error) {
-        console.error('Error loading articles:', error);
-        alert('Fehler beim Laden der Artikel');
-    }
-}
-
-// Search articles
-async function searchArticles(query) {
-    if (!query.trim()) {
-        return loadArticles();
-    }
-
-    try {
-        const categoryFilter = document.getElementById('categoryFilter');
-        const selectedCategory = categoryFilter ? categoryFilter.value : '';
-        
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        if (!response.ok) {
-            throw new Error('Failed to search articles');
-        }
-        
-        let articles = await response.json();
-        
-        // Filter by category if selected
-        if (selectedCategory) {
-            articles = articles.filter(article => article.category === selectedCategory);
-        }
-        
-        displayArticles(articles);
-    } catch (error) {
-        console.error('Error searching articles:', error);
-        alert('Fehler bei der Suche');
-    }
+        .filter(article => article && (article._id || article.id) && article.title)
+        .map(article => {
+            const id = article._id || article.id;
+            return `
+                <article class="article-preview">
+                    <h2><a href="/article/${id}">${article.title}</a></h2>
+                    <div class="article-meta">
+                        <span>Autor: ${article.author || 'Unbekannt'}</span>
+                        <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
+                        <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                    </div>
+                </article>
+            `;
+        })
+        .join('');
 }
 
 // Load single article
@@ -374,10 +279,25 @@ async function loadArticle(articleId) {
 async function loadRecentArticles() {
     try {
         const response = await fetch('/api/recent');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to get recent articles');
+        }
+        
         const articles = await response.json();
         displayArticles(articles);
     } catch (error) {
         console.error('Error loading recent articles:', error);
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Fehler beim Laden der neuesten Artikel</h2>
+                    <p>${error.message}</p>
+                    <button onclick="loadArticles()" class="btn btn-primary">Alle Artikel anzeigen</button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -559,3 +479,124 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Quill editor if we're on a page with an editor
+    const editorContainer = document.querySelector('#editor-container') || document.querySelector('#editor');
+    if (editorContainer) {
+        initializeQuill('#' + editorContainer.id);
+    }
+
+    // Check if we're on an article page
+    const path = window.location.pathname;
+    if (path.startsWith('/article/')) {
+        const articleId = path.split('/').pop();
+        loadArticle(articleId);
+    }
+    // Load articles on home page
+    else if (path === '/') {
+        loadArticles();
+
+        // Initialize category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', () => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput.value.trim()) {
+                    searchArticles(searchInput.value);
+                } else {
+                    loadArticles();
+                }
+            });
+        }
+    }
+
+    // Initialize event listeners
+    const randomArticleBtn = document.getElementById('randomArticle');
+    if (randomArticleBtn) {
+        randomArticleBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await loadRandomArticle();
+        });
+    }
+
+    // Initialize search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        let debounceTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                searchArticles(e.target.value);
+            }, 300);
+        });
+    }
+
+    // Initialize recent articles
+    const recentArticlesBtn = document.getElementById('recentArticles');
+    if (recentArticlesBtn) {
+        recentArticlesBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/api/recent');
+                if (!response.ok) throw new Error('Failed to get recent articles');
+                const articles = await response.json();
+                displayArticles(articles);
+            } catch (error) {
+                console.error('Error getting recent articles:', error);
+                alert('Fehler beim Laden der neuesten Artikel');
+            }
+        });
+    }
+
+    // Load article data if editing
+    const articleId = window.location.pathname.split('/').pop();
+    if (articleId !== 'create' && editorContainer) {
+        fetch(`/api/articles/${articleId}`)
+            .then(response => response.json())
+            .then(article => {
+                document.getElementById('title').value = article.title || '';
+                document.getElementById('editor-name').value = article.author || '';
+                document.getElementById('category').value = article.category || '';
+                quill.root.innerHTML = article.content || '';
+            })
+            .catch(error => {
+                console.error('Error loading article:', error);
+                alert('Fehler beim Laden des Artikels');
+            });
+    }
+});
+
+// Search articles
+async function searchArticles(query) {
+    if (!query.trim()) {
+        return loadArticles();
+    }
+
+    try {
+        const categoryFilter = document.getElementById('categoryFilter');
+        const selectedCategory = categoryFilter ? categoryFilter.value : '';
+        
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to search articles');
+        }
+        
+        const articles = await response.json();
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error searching articles:', error);
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Fehler bei der Suche</h2>
+                    <p>${error.message}</p>
+                    <button onclick="loadArticles()" class="btn btn-primary">Alle Artikel anzeigen</button>
+                </div>
+            `;
+        }
+    }
+}

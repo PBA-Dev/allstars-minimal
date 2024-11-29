@@ -104,11 +104,11 @@ app.post('/api/articles', async (req, res) => {
             return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
-        const articleId = Date.now().toString();
-        console.log('Generated article ID:', articleId);
+        const _id = Date.now().toString();
+        console.log('Generated article ID:', _id);
 
         const newArticle = {
-            _id: articleId,
+            _id,
             title,
             content,
             author,
@@ -131,7 +131,7 @@ app.post('/api/articles', async (req, res) => {
         }
 
         // Save to file
-        const articlePath = path.join(articlesDir, `${articleId}.json`);
+        const articlePath = path.join(articlesDir, `${_id}.json`);
         console.log('Saving article to:', articlePath);
         await fs.writeFile(articlePath, JSON.stringify(newArticle, null, 2));
 
@@ -147,7 +147,7 @@ app.post('/api/articles', async (req, res) => {
             }
             
             history.push({
-                _id: articleId,
+                _id,
                 title: newArticle.title,
                 createdAt: newArticle.createdAt
             });
@@ -230,33 +230,56 @@ app.get('/api/random-article', (req, res) => {
     res.json(articles[randomIndex]);
 });
 
-app.get('/api/search', (req, res) => {
+app.get('/api/search', async (req, res) => {
     try {
-        const query = req.query.q?.toLowerCase() || '';
+        const query = req.query.q?.toLowerCase();
         if (!query) {
-            return res.json(articles);
+            return res.status(400).json({ error: 'Search query is required' });
         }
 
-        const results = articles.filter(article => {
-            const titleMatch = article.title?.toLowerCase().includes(query);
-            const contentMatch = article.content?.toLowerCase().includes(query);
-            return titleMatch || contentMatch;
-        });
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const files = await fs.readdir(articlesDir);
+        
+        const articles = await Promise.all(
+            files
+                .filter(file => file.endsWith('.json') && file !== 'article_history.json')
+                .map(async file => {
+                    const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                    return JSON.parse(content);
+                })
+        );
 
-        res.json(results);
+        const searchResults = articles.filter(article => 
+            article.title?.toLowerCase().includes(query) ||
+            article.content?.toLowerCase().includes(query) ||
+            article.author?.toLowerCase().includes(query) ||
+            article.category?.toLowerCase().includes(query)
+        );
+
+        res.json(searchResults);
     } catch (error) {
         console.error('Error searching articles:', error);
-        res.status(500).json({ error: 'Failed to search articles', details: error.message });
+        res.status(500).json({ error: 'Failed to search articles' });
     }
 });
 
-app.get('/api/random', (req, res) => {
+app.get('/api/random', async (req, res) => {
     try {
-        if (articles.length === 0) {
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const files = await fs.readdir(articlesDir);
+        
+        const articleFiles = files.filter(file => 
+            file.endsWith('.json') && file !== 'article_history.json'
+        );
+
+        if (articleFiles.length === 0) {
             return res.status(404).json({ error: 'No articles found' });
         }
-        const randomIndex = Math.floor(Math.random() * articles.length);
-        const article = articles[randomIndex];
+
+        const randomFile = articleFiles[Math.floor(Math.random() * articleFiles.length)];
+        const content = await fs.readFile(path.join(articlesDir, randomFile), 'utf8');
+        const article = JSON.parse(content);
+
         res.json(article);
     } catch (error) {
         console.error('Error getting random article:', error);
@@ -264,16 +287,30 @@ app.get('/api/random', (req, res) => {
     }
 });
 
-app.get('/api/recent', (req, res) => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentArticles = articles.filter(article => {
-        const articleDate = new Date(article.updatedAt || article.createdAt);
-        return articleDate >= thirtyDaysAgo;
-    });
-    
-    res.json(recentArticles);
+app.get('/api/recent', async (req, res) => {
+    try {
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const files = await fs.readdir(articlesDir);
+        
+        const articles = await Promise.all(
+            files
+                .filter(file => file.endsWith('.json') && file !== 'article_history.json')
+                .map(async file => {
+                    const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                    return JSON.parse(content);
+                })
+        );
+
+        // Sort by creation date (newest first) and take top 5
+        const recentArticles = articles
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
+
+        res.json(recentArticles);
+    } catch (error) {
+        console.error('Error getting recent articles:', error);
+        res.status(500).json({ error: 'Failed to get recent articles' });
+    }
 });
 
 // Update article
