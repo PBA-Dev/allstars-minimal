@@ -7,6 +7,9 @@ node_modules/
 # Logs
 *.log
 
+# Docker Compose file
+docker-compose.yml
+
 # IDE files
 .vscode/
 .idea/
