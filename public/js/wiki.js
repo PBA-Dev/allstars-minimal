@@ -593,8 +593,8 @@ style.textContent = `
     /* Limit size of images and videos in editor and article view */
     .ql-editor img, 
     .article-content img {
-        max-width: 600px !important;
-        max-height: 600px !important;
+        max-width: 400px !important;
+        max-height: 400px !important;
         width: auto !important;
         height: auto !important;
         object-fit: contain;
@@ -602,8 +602,8 @@ style.textContent = `
     
     .ql-editor video,
     .article-content video {
-        max-width: 600px !important;
-        max-height: 600px !important;
+        max-width: 400px !important;
+        max-height: 400px !important;
         width: auto !important;
         height: auto !important;
         object-fit: contain;
