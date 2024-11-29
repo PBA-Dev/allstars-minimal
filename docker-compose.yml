@@ -12,6 +12,7 @@ services:
 
   wiki:
     build: .
+    image: allstars-wiki-minimal:latest
     container_name: allstars-wiki-minimal
     user: "node"
     ports:
