@@ -92,11 +92,11 @@ async function loadRandomArticle() {
             throw new Error('Failed to get random article');
         }
         const article = await response.json();
-        if (article && article._id) {
-            window.location.href = `/article/${article._id}`;
-        } else {
+        if (!article || !article._id) {
+            console.error('Invalid article data received:', article);
             throw new Error('Invalid article data received');
         }
+        window.location.href = `/article/${article._id}`;
     } catch (error) {
         console.error('Error loading random article:', error);
         alert('Fehler beim Laden eines zufälligen Artikels');
@@ -206,16 +206,18 @@ async function displayArticles(articles) {
         return;
     }
 
-    container.innerHTML = articles.map(article => `
-        <article class="article-preview">
-            <h2><a href="/article/${article._id}">${article.title}</a></h2>
-            <div class="article-meta">
-                <span>Autor: ${article.author || 'Unbekannt'}</span>
-                <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
-                <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-            </div>
-        </article>
-    `).join('');
+    container.innerHTML = articles
+        .filter(article => article && article._id && article.title) // Filter out invalid articles
+        .map(article => `
+            <article class="article-preview">
+                <h2><a href="/article/${article._id}">${article.title}</a></h2>
+                <div class="article-meta">
+                    <span>Autor: ${article.author || 'Unbekannt'}</span>
+                    <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
+                    <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                </div>
+            </article>
+        `).join('');
 }
 
 // Load all articles
