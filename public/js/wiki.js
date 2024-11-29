@@ -111,8 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeQuill('#' + editorContainer.id);
     }
 
+    // Check if we're on an article page
+    const path = window.location.pathname;
+    if (path.startsWith('/article/')) {
+        const articleId = path.split('/').pop();
+        loadArticle(articleId);
+    }
     // Load articles on home page
-    if (window.location.pathname === '/') {
+    else if (path === '/') {
         loadArticles();
 
         // Initialize category filter
@@ -269,14 +275,19 @@ async function searchArticles(query) {
 // Load single article
 async function loadArticle(articleId) {
     try {
+        console.log('Loading article:', articleId);
         const response = await fetch(`/api/articles/${articleId}`);
         if (!response.ok) {
             throw new Error('Article not found');
         }
         const article = await response.json();
+        console.log('Article loaded:', article);
         
         const container = document.querySelector('.container');
-        if (!container) return;
+        if (!container) {
+            console.error('Container not found');
+            return;
+        }
 
         container.innerHTML = `
             <article class="article-full">
@@ -302,9 +313,9 @@ async function loadArticle(articleId) {
         if (container) {
             container.innerHTML = `
                 <div class="error-message">
-                    <h2>Artikel nicht gefunden</h2>
-                    <p>Der angeforderte Artikel konnte nicht gefunden werden.</p>
-                    <a href="/" class="btn btn-primary">Zurück zur Übersicht</a>
+                    <h2>Fehler beim Laden des Artikels</h2>
+                    <p>${error.message}</p>
+                    <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
                 </div>
             `;
         }

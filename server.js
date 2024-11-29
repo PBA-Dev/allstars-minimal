@@ -362,23 +362,30 @@ app.get('/api/articles/search', (req, res) => {
 });
 
 // Get single article
-app.get('/api/articles/:id', (req, res) => {
-    const articlePath = path.join(articlesDir, `${req.params.id}.json`);
-    fs.readFile(articlePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading article:', err);
+app.get('/api/articles/:id', async (req, res) => {
+    try {
+        const articleId = req.params.id;
+        console.log('Fetching article:', articleId);
+        const articlePath = path.join(articlesDir, `${articleId}.json`);
+        
+        if (!fs.existsSync(articlePath)) {
+            console.error('Article not found:', articleId);
             return res.status(404).json({ error: 'Article not found' });
         }
 
-        try {
-            const article = JSON.parse(data);
-            article.id = req.params.id;
-            res.json(article);
-        } catch (err) {
-            console.error('Error parsing article JSON:', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        console.log('Reading article from:', articlePath);
+        const content = await fsPromises.readFile(articlePath, 'utf8');
+        const article = JSON.parse(content);
+        console.log('Article loaded successfully');
+        
+        res.json({
+            _id: articleId,
+            ...article
+        });
+    } catch (error) {
+        console.error('Error getting article:', error);
+        res.status(500).json({ error: 'Failed to get article' });
+    }
 });
 
 // Create new article

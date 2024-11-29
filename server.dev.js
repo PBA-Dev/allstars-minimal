@@ -26,101 +26,103 @@ app.use(cors());
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory storage (replace with MongoDB later)
-let articles = [];
-let articleHistory = {};
-
-// Load articles from individual files
-async function loadData() {
-    try {
-        const articlesDir = path.join(__dirname, 'public', 'articles');
-        
-        // Create articles directory if it doesn't exist
-        await fs.mkdir(articlesDir, { recursive: true });
-        
-        // Read existing articles
-        const files = await fs.readdir(articlesDir);
-        const jsonFiles = files.filter(file => file.endsWith('.json') && file !== 'article_history.json');
-        
-        articles = [];
-        for (const file of jsonFiles) {
-            try {
-                const articleData = await fs.readFile(path.join(articlesDir, file), 'utf8');
-                const article = JSON.parse(articleData);
-                article._id = file.replace('.json', ''); // Use filename as ID
-                articles.push(article);
-            } catch (error) {
-                console.error(`Error reading article file ${file}:`, error);
-            }
-        }
-
-        // Load article history
-        try {
-            const historyData = await fs.readFile(path.join(articlesDir, 'article_history.json'), 'utf8');
-            articleHistory = JSON.parse(historyData);
-        } catch (error) {
-            console.log('No existing history found, starting with empty object');
-            articleHistory = {};
-        }
-
-    } catch (error) {
-        console.error('Error loading articles:', error);
-        articles = [];
-        articleHistory = {};
-    }
-}
-
-// Save articles to individual files
-async function saveData() {
-    try {
-        const articlesDir = path.join(__dirname, 'public', 'articles');
-        await fs.mkdir(articlesDir, { recursive: true });
-
-        // Save each article to its own file
-        for (const article of articles) {
-            const fileName = `${article._id}.json`;
-            await fs.writeFile(
-                path.join(articlesDir, fileName),
-                JSON.stringify(article, null, 2)
-            );
-        }
-
-        // Save history
-        await fs.writeFile(
-            path.join(articlesDir, 'article_history.json'),
-            JSON.stringify(articleHistory, null, 2)
-        );
-    } catch (error) {
-        console.error('Error saving data:', error);
-    }
-}
-
-// Initialize data
-loadData();
-
 // API Routes
-app.get('/api/articles', (req, res) => {
+
+// Get all articles
+app.get('/api/articles', async (req, res) => {
     try {
-        const category = req.query.category?.toLowerCase();
-        if (category) {
-            const filteredArticles = articles.filter(article => 
-                article.category?.toLowerCase() === category
-            );
-            return res.json(filteredArticles);
-        }
-        res.json(articles);
+        const { category } = req.query;
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const files = await fs.readdir(articlesDir);
+        
+        const articles = await Promise.all(
+            files
+                .filter(file => file.endsWith('.json') && file !== 'article_history.json')
+                .map(async file => {
+                    const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                    const article = JSON.parse(content);
+                    return {
+                        _id: file.replace('.json', ''),
+                        ...article
+                    };
+                })
+        );
+
+        // Filter by category if specified
+        const filteredArticles = category
+            ? articles.filter(article => article.category === category)
+            : articles;
+
+        // Sort by creation date (newest first)
+        filteredArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json(filteredArticles);
     } catch (error) {
         console.error('Error getting articles:', error);
-        res.status(500).json({ error: 'Failed to get articles', details: error.message });
+        res.status(500).json({ error: 'Failed to get articles' });
     }
 });
 
-app.get('/api/articles/:id', (req, res) => {
-    const article = articles.find(a => a._id === req.params.id);
-    if (!article) {
-        return res.status(404).json({ error: 'Article not found' });
+// Get single article
+app.get('/api/articles/:id', async (req, res) => {
+    try {
+        const articleId = req.params.id;
+        console.log('Fetching article:', articleId);
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const articlePath = path.join(articlesDir, `${articleId}.json`);
+        
+        try {
+            await fs.access(articlePath);
+        } catch {
+            console.error('Article not found:', articleId);
+            return res.status(404).json({ error: 'Article not found' });
+        }
+
+        console.log('Reading article from:', articlePath);
+        const content = await fs.readFile(articlePath, 'utf8');
+        const article = JSON.parse(content);
+        console.log('Article loaded successfully');
+        
+        res.json({
+            _id: articleId,
+            ...article
+        });
+    } catch (error) {
+        console.error('Error getting article:', error);
+        res.status(500).json({ error: 'Failed to get article' });
     }
-    res.json(article);
+});
+
+// Create new article
+app.post('/api/articles', async (req, res) => {
+    try {
+        const { title, content, author, category } = req.body;
+        if (!title || !content || !author || !category) {
+            return res.status(400).json({ error: 'Title, content, author, and category are required' });
+        }
+
+        const newArticle = {
+            _id: Date.now().toString(),
+            title,
+            content,
+            author,
+            category,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        // Save to file
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        await fs.writeFile(
+            path.join(articlesDir, `${newArticle._id}.json`),
+            JSON.stringify(newArticle, null, 2)
+        );
+
+        res.status(201).json(newArticle);
+    } catch (error) {
+        console.error('Error creating article:', error);
+        res.status(500).json({ error: 'Failed to create article' });
+    }
 });
 
 app.get('/api/articles/:id/history', (req, res) => {
@@ -185,70 +187,70 @@ app.get('/api/recent', (req, res) => {
     res.json(recentArticles);
 });
 
-app.post('/api/articles', async (req, res) => {
+// Update article
+app.put('/api/articles/:id', async (req, res) => {
     try {
+        const articleId = req.params.id;
         const { title, content, author, category } = req.body;
         if (!title || !content || !author || !category) {
             return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
-        const newArticle = {
-            _id: Date.now().toString(),
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const articlePath = path.join(articlesDir, `${articleId}.json`);
+        
+        try {
+            await fs.access(articlePath);
+        } catch {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+
+        // Read existing article
+        const existingContent = await fs.readFile(articlePath, 'utf8');
+        const existingArticle = JSON.parse(existingContent);
+
+        // Update article
+        const updatedArticle = {
+            ...existingArticle,
             title,
             content,
             author,
             category,
-            createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
-        articles.push(newArticle);
-        await saveData();
+        // Save updated article
+        await fs.writeFile(
+            articlePath,
+            JSON.stringify(updatedArticle, null, 2)
+        );
 
-        res.status(201).json(newArticle);
-    } catch (error) {
-        console.error('Error creating article:', error);
-        res.status(500).json({ error: 'Failed to create article' });
-    }
-});
-
-app.put('/api/articles/:id', async (req, res) => {
-    try {
-        const { title, content, author, category } = req.body;
-        if (!title || !content || !author || !category) {
-            return res.status(400).json({ error: 'Title, content, author, and category are required' });
-        }
-
-        const article = articles.find(a => a._id === req.params.id);
-        if (!article) {
-            return res.status(404).json({ error: 'Article not found' });
-        }
-
-        // Save the edit in history
-        if (!articleHistory[article._id]) {
-            articleHistory[article._id] = [];
-        }
-        
-        articleHistory[article._id].push({
-            editor: author,
-            date: new Date().toISOString(),
-            action: 'edited',
-            title: title,
-            previousTitle: article.title !== title ? article.title : undefined
-        });
-
-        // Update the article
-        article.title = title;
-        article.content = content;
-        article.author = author;
-        article.category = category;
-        article.updatedAt = new Date().toISOString();
-
-        await saveData();
-        res.json(article);
+        res.json(updatedArticle);
     } catch (error) {
         console.error('Error updating article:', error);
         res.status(500).json({ error: 'Failed to update article' });
+    }
+});
+
+// Delete article
+app.delete('/api/articles/:id', async (req, res) => {
+    try {
+        const articleId = req.params.id;
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        const articlePath = path.join(articlesDir, `${articleId}.json`);
+        
+        try {
+            await fs.access(articlePath);
+        } catch {
+            return res.status(404).json({ error: 'Article not found' });
+        }
+
+        // Delete the article file
+        await fs.unlink(articlePath);
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting article:', error);
+        res.status(500).json({ error: 'Failed to delete article' });
     }
 });
 
@@ -279,6 +281,17 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
+// Create articles directory if it doesn't exist
+(async () => {
+    try {
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        await fs.mkdir(articlesDir, { recursive: true });
+        console.log('Articles directory ready');
+    } catch (error) {
+        console.error('Error creating articles directory:', error);
+    }
+})();
+
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server running at http://localhost:${port}`);
 });
