@@ -105,8 +105,10 @@ app.post('/api/articles', async (req, res) => {
         }
 
         const articleId = Date.now().toString();
+        console.log('Generated article ID:', articleId);
+
         const newArticle = {
-            _id: articleId,  // Use _id consistently
+            _id: articleId,
             title,
             content,
             author,
@@ -114,6 +116,8 @@ app.post('/api/articles', async (req, res) => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
+
+        console.log('Created article object:', newArticle);
 
         // Ensure articles directory exists
         const articlesDir = path.join(__dirname, 'public', 'articles');
@@ -154,11 +158,11 @@ app.post('/api/articles', async (req, res) => {
             console.error('Error updating article history:', historyError);
         }
 
-        console.log('Article saved successfully:', newArticle);
-        res.status(201).json(newArticle);
+        console.log('About to send response with article:', newArticle);
+        return res.status(201).json(newArticle);
     } catch (error) {
         console.error('Error creating article:', error);
-        res.status(500).json({ error: 'Failed to create article: ' + error.message });
+        return res.status(500).json({ error: 'Failed to create article: ' + error.message });
     }
 });
 

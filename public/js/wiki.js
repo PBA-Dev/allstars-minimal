@@ -65,28 +65,42 @@ async function saveArticle() {
     }
 
     try {
-        console.log('Making request to:', `/api/articles${isNewArticle ? '' : '/' + articleId}`);
-        const response = await fetch(`/api/articles${isNewArticle ? '' : '/' + articleId}`, {
+        const url = `/api/articles${isNewArticle ? '' : '/' + articleId}`;
+        console.log('Making request to:', url);
+        
+        const requestData = { title, author, category, content };
+        console.log('Request data:', requestData);
+
+        const response = await fetch(url, {
             method: isNewArticle ? 'POST' : 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ title, author, category, content })
+            body: JSON.stringify(requestData)
         });
 
-        const responseData = await response.json();
-        console.log('Server response:', response.status, responseData);
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+
+        let responseData;
+        try {
+            responseData = JSON.parse(responseText);
+            console.log('Parsed response data:', responseData);
+        } catch (e) {
+            console.error('Failed to parse response as JSON:', e);
+            throw new Error('Server returned invalid JSON');
+        }
 
         if (!response.ok) {
             throw new Error(responseData.error || 'Failed to save article');
         }
 
         if (!responseData._id) {
-            console.error('No _id in response:', responseData);
+            console.error('Response missing _id:', responseData);
             throw new Error('Invalid server response: missing article ID');
         }
 
-        console.log('Redirecting to:', `/article/${responseData._id}`);
+        console.log('Successfully saved article. Redirecting to:', `/article/${responseData._id}`);
         window.location.href = `/article/${responseData._id}`;
     } catch (error) {
         console.error('Error saving article:', error);
