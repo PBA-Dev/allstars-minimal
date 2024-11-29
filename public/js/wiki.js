@@ -95,10 +95,10 @@ async function saveArticle() {
             throw new Error(responseData.error || 'Failed to save article');
         }
 
-        // Handle both id and _id formats
-        const articleID = responseData._id || responseData.id;
+        // For updates, use the existing article ID
+        const articleID = isNewArticle ? (responseData._id || responseData.id) : articleId;
         if (!articleID) {
-            console.error('Response missing both id and _id:', responseData);
+            console.error('No article ID available:', { isNewArticle, responseData, articleId });
             throw new Error('Invalid server response: missing article ID');
         }
 
