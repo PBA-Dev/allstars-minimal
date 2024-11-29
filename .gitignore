@@ -12,8 +12,7 @@ node_modules/
 .idea/
 
 # OS files
-.DS_Store
-**/.DS_Store
+
 Thumbs.db
 
 # Uploads directory
