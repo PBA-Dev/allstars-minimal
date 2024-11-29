@@ -328,26 +328,45 @@ async function loadArticle(articleId) {
             throw new Error('Invalid article data: missing ID');
         }
 
-        document.getElementById('article-title').textContent = article.title;
-        document.getElementById('article-author').textContent = article.author;
-        document.getElementById('article-date').textContent = new Date(article.createdAt).toLocaleDateString('de-DE');
-        document.getElementById('article-content').innerHTML = article.content;
-
-        // Update edit link
-        const editLink = document.getElementById('edit-link');
-        if (editLink) {
-            editLink.href = `/edit/${id}`;
+        // Get container and create article content
+        const container = document.querySelector('.container');
+        if (!container) {
+            throw new Error('Container element not found');
         }
+
+        container.innerHTML = `
+            <article class="article-full">
+                <div class="article-header">
+                    <h1>${article.title}</h1>
+                </div>
+                <div class="article-meta">
+                    <span>Autor: ${article.author || 'Unbekannt'}</span>
+                    <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
+                    <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                    ${article.updatedAt ? `<span>Zuletzt bearbeitet: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>` : ''}
+                </div>
+                <div class="article-content">
+                    ${article.content}
+                </div>
+                <div class="article-actions">
+                    <a href="/edit/${id}" class="btn btn-primary">Bearbeiten</a>
+                    <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
+                </div>
+            </article>
+        `;
 
     } catch (error) {
         console.error('Error loading article:', error);
-        document.getElementById('article-container').innerHTML = `
-            <div class="error-message">
-                <h2>Fehler beim Laden des Artikels</h2>
-                <p>${error.message}</p>
-                <a href="/" class="btn btn-primary">Zurück zur Übersicht</a>
-            </div>
-        `;
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Fehler beim Laden des Artikels</h2>
+                    <p>${error.message}</p>
+                    <a href="/" class="btn btn-primary">Zurück zur Übersicht</a>
+                </div>
+            `;
+        }
     }
 }
 
