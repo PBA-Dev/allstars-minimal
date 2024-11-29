@@ -48,147 +48,173 @@ app.use((req, res, next) => {
     next();
 });
 
-// Configure multer for image upload
+// Configure multer for file upload
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/uploads/');
+    destination: function (req, file, cb) {
+        const uploadsDir = path.join(__dirname, 'public', 'uploads');
+        fs.mkdir(uploadsDir, { recursive: true }, (err) => {
+            if (err) {
+                console.error('Error creating uploads directory:', err);
+                cb(err, null);
+            } else {
+                cb(null, uploadsDir);
+            }
+        });
     },
-    filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
-        cb(null, uniqueName);
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
     }
 });
 
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+        fileSize: 25 * 1024 * 1024 // 25MB limit (will be checked per file type in fileFilter)
     },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        if (allowedTypes.includes(file.mimetype)) {
-            cb(null, true);
-        } else {
-            cb(new Error('Invalid file type'));
-        }
-    }
-});
-
-// Create articles directory if it doesn't exist
-const articlesDir = path.join(__dirname, 'public', 'articles');
-console.log('Articles directory path:', articlesDir);
-
-if (!fs.existsSync(articlesDir)) {
-    try {
-        fs.mkdirSync(articlesDir, { recursive: true });
-        console.log('Created articles directory');
-    } catch (err) {
-        console.error('Error creating articles directory:', err);
-    }
-} else {
-    console.log('Articles directory exists');
-}
-
-// List all files in articles directory
-try {
-    const files = fs.readdirSync(articlesDir);
-    console.log('Files in articles directory:', files);
-} catch (err) {
-    console.error('Error listing files:', err);
-}
-
-// Initialize articles if directory is empty
-fs.readdir(articlesDir, (err, files) => {
-    if (err) {
-        console.error('Error reading articles directory:', err);
-        return;
-    }
-
-    // Only initialize if no JSON files exist
-    const jsonFiles = files.filter(file => file.endsWith('.json'));
-    if (jsonFiles.length === 0) {
-        console.log('No existing articles found, copying initial articles...');
-        const initialArticles = [
-            {
-                title: "Die Zukunft der Pflegeberatung",
-                content: "<p>Die Digitalisierung eröffnet neue Möglichkeiten für die Pflegeberatung. Online-Seminare und digitale Plattformen erweitern die Reichweite und Effizienz der Beratungsdienste.</p>",
-                author: "Verena Campbell",
-                category: "Pflegeberatung",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
-            },
-            {
-                title: "Pflegegrade und deren Bedeutung",
-                content: "<p>Eine detaillierte Erklärung der verschiedenen Pflegegrade und ihrer Bedeutung für die Versorgung.</p>",
-                author: "Verena Campbell",
-                category: "Pflegegrade",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
-            },
-            {
-                title: "Unterstützung bei der häuslichen Pflege",
-                content: "<p>Praktische Tipps und Ressourcen für die häusliche Pflege von Angehörigen.</p>",
-                author: "Verena Campbell",
-                category: "Häusliche Pflege",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
-            },
-            {
-                title: "Prävention und Gesundheitsförderung für Pflegebedürftige",
-                content: "<p>Wichtige Maßnahmen zur Prävention und Gesundheitsförderung in der Pflege.</p>",
-                author: "Verena Campbell",
-                category: "Prävention und Gesundheitsförderung",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
-            },
-            {
-                title: "Selbsthilfegruppen für pflegende Angehörige",
-                content: "<p>Informationen über Selbsthilfegruppen und Unterstützungsnetzwerke für pflegende Angehörige.</p>",
-                author: "Verena Campbell",
-                category: "Selbsthilfegruppen",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
-            },
-            {
-                title: "Pflegeversicherung – Was sie leistet und wie man sie nutzt",
-                content: "<p>Ein umfassender Überblick über die Leistungen der Pflegeversicherung und deren Nutzung.</p>",
-                author: "Verena Campbell",
-                category: "Pflegeversicherung",
-                createdAt: "2024-11-27T09:07:59.509Z",
-                updatedAt: "2024-11-27T09:07:59.509Z"
+    fileFilter: function (req, file, cb) {
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+            // For images: 10MB limit
+            if (parseInt(req.headers['content-length']) > 10 * 1024 * 1024) {
+                cb(new Error('Image files must be less than 10MB'), false);
+                return;
             }
-        ];
-
-        initialArticles.forEach((article, index) => {
-            const id = `173270567950${index + 1}`;
-            fs.writeFileSync(
-                path.join(articlesDir, `${id}.json`),
-                JSON.stringify(article, null, 2)
-            );
-        });
-        console.log('Initial articles created successfully');
-    } else {
-        console.log(`Found ${jsonFiles.length} existing articles`);
+            // Accept only specific image formats
+            if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+                cb(new Error('Only JPG, JPEG, PNG, and GIF images are allowed'), false);
+                return;
+            }
+        } else if (file.mimetype.startsWith('video/')) {
+            // For videos: 25MB limit
+            if (parseInt(req.headers['content-length']) > 25 * 1024 * 1024) {
+                cb(new Error('Video files must be less than 25MB'), false);
+                return;
+            }
+            // Accept only specific video formats
+            if (!file.originalname.match(/\.(mp4|webm|ogg)$/i)) {
+                cb(new Error('Only MP4, WebM, and OGG videos are allowed'), false);
+                return;
+            }
+        } else {
+            cb(new Error('Only image and video files are allowed'), false);
+            return;
+        }
+        cb(null, true);
     }
-});
+}).single('file');
 
-// Log the contents of the articles directory
-fs.readdir(articlesDir, (err, files) => {
-    if (err) {
-        console.error('Error reading articles directory:', err);
-    } else {
-        console.log('Articles directory contents:', files);
-    }
-});
-
-// Create uploads directory if it doesn't exist
+// Create directories if they don't exist
+const articlesDir = path.join(__dirname, 'public', 'articles');
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log('Created uploads directory');
-} else {
-    console.log('Uploads directory exists');
-}
+
+Promise.all([
+    fsPromises.mkdir(articlesDir, { recursive: true }),
+    fsPromises.mkdir(uploadsDir, { recursive: true })
+]).then(() => {
+    console.log('Directories created successfully');
+}).catch(err => {
+    console.error('Error creating directories:', err);
+});
+
+// File upload endpoint with better error handling
+app.post('/api/upload', (req, res) => {
+    console.log('Received upload request');
+    console.log('Headers:', req.headers);
+    
+    upload(req, res, function (err) {
+        console.log('Processing upload...');
+        if (err) {
+            console.error('Upload error:', err);
+            if (err instanceof multer.MulterError) {
+                console.error('Multer error:', err.code, err.field);
+                return res.status(400).json({ 
+                    error: `File upload error: ${err.message}`,
+                    code: err.code
+                });
+            }
+            return res.status(400).json({ 
+                error: err.message || 'Invalid file type or size',
+                details: err.toString()
+            });
+        }
+        
+        if (!req.file) {
+            console.error('No file in request');
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        console.log('File uploaded successfully:', req.file);
+        
+        // Return the URL and type of the uploaded file
+        const fileUrl = `/uploads/${req.file.filename}`;
+        const fileType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+        res.json({ url: fileUrl, type: fileType });
+    });
+});
+
+// Get random article
+app.get('/api/random', async (req, res) => {
+    try {
+        const files = await fsPromises.readdir(articlesDir);
+        const jsonFiles = files.filter(file => file.endsWith('.json') && file !== 'article_history.json');
+        
+        if (jsonFiles.length === 0) {
+            return res.status(404).json({ error: 'No articles found' });
+        }
+        
+        const randomFile = jsonFiles[Math.floor(Math.random() * jsonFiles.length)];
+        const content = await fsPromises.readFile(path.join(articlesDir, randomFile), 'utf8');
+        const article = JSON.parse(content);
+        
+        res.json({
+            _id: randomFile.replace('.json', ''),
+            ...article
+        });
+    } catch (error) {
+        console.error('Error getting random article:', error);
+        res.status(500).json({ error: 'Failed to get random article' });
+    }
+});
+
+// Get recent articles
+app.get('/api/recent', async (req, res) => {
+    try {
+        const files = await fsPromises.readdir(articlesDir);
+        const jsonFiles = files.filter(file => file.endsWith('.json') && file !== 'article_history.json');
+        
+        // Get file stats and sort by creation time
+        const fileStats = await Promise.all(
+            jsonFiles.map(async file => {
+                const stats = await fsPromises.stat(path.join(articlesDir, file));
+                return { file, createdAt: stats.birthtime };
+            })
+        );
+        
+        // Sort by creation time (newest first) and take top 5
+        const recentFiles = fileStats
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, 5)
+            .map(stat => stat.file);
+        
+        // Read and parse recent articles
+        const articles = await Promise.all(
+            recentFiles.map(async file => {
+                const content = await fsPromises.readFile(path.join(articlesDir, file), 'utf8');
+                const article = JSON.parse(content);
+                return {
+                    _id: file.replace('.json', ''),
+                    ...article
+                };
+            })
+        );
+        
+        res.json(articles);
+    } catch (error) {
+        console.error('Error getting recent articles:', error);
+        res.status(500).json({ error: 'Failed to get recent articles' });
+    }
+});
 
 // API endpoints
 // Get all articles
@@ -224,141 +250,6 @@ app.get('/api/articles', async (req, res) => {
         console.error('Error getting articles:', error);
         res.status(500).json({ error: 'Failed to get articles' });
     }
-});
-
-// Get random article
-app.get('/api/articles/random', (req, res) => {
-    fs.readdir(articlesDir, (err, files) => {
-        if (err) {
-            console.error('Error reading articles directory:', err);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-
-        const jsonFiles = files.filter(file => file.endsWith('.json'));
-        if (jsonFiles.length === 0) {
-            return res.status(404).json({ error: 'No articles found' });
-        }
-
-        const randomFile = jsonFiles[Math.floor(Math.random() * jsonFiles.length)];
-        const articleId = randomFile.replace('.json', '');
-
-        fs.readFile(path.join(articlesDir, randomFile), 'utf8', (err, data) => {
-            if (err) {
-                console.error('Error reading article file:', err);
-                return res.status(500).json({ error: 'Internal server error' });
-            }
-
-            try {
-                const article = JSON.parse(data);
-                article.id = articleId;
-                res.json(article);
-            } catch (err) {
-                console.error('Error parsing article JSON:', err);
-                res.status(500).json({ error: 'Internal server error' });
-            }
-        });
-    });
-});
-
-// Get recent articles
-app.get('/api/articles/recent', (req, res) => {
-    fs.readdir(articlesDir, (err, files) => {
-        if (err) {
-            console.error('Error reading articles directory:', err);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-
-        const jsonFiles = files.filter(file => file.endsWith('.json'));
-        const articles = [];
-
-        let processed = 0;
-        if (jsonFiles.length === 0) {
-            return res.json(articles);
-        }
-
-        jsonFiles.forEach(file => {
-            fs.readFile(path.join(articlesDir, file), 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading article file:', err);
-                    processed++;
-                } else {
-                    try {
-                        const article = JSON.parse(data);
-                        article.id = file.replace('.json', '');
-                        articles.push(article);
-                    } catch (err) {
-                        console.error('Error parsing article JSON:', err);
-                    }
-                    processed++;
-                }
-
-                if (processed === jsonFiles.length) {
-                    articles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    const thirtyDaysAgo = new Date();
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                    const recentArticles = articles.filter(article => 
-                        new Date(article.createdAt) >= thirtyDaysAgo
-                    );
-                    res.json(recentArticles);
-                }
-            });
-        });
-    });
-});
-
-// Search articles
-app.get('/api/articles/search', (req, res) => {
-    const query = req.query.q?.toLowerCase();
-    if (!query) {
-        return res.status(400).json({ error: 'Search query is required' });
-    }
-
-    fs.readdir(articlesDir, (err, files) => {
-        if (err) {
-            console.error('Error reading articles directory:', err);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
-
-        const jsonFiles = files.filter(file => file.endsWith('.json'));
-        const articles = [];
-
-        let processed = 0;
-        if (jsonFiles.length === 0) {
-            return res.json(articles);
-        }
-
-        jsonFiles.forEach(file => {
-            fs.readFile(path.join(articlesDir, file), 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading article file:', err);
-                    processed++;
-                } else {
-                    try {
-                        const article = JSON.parse(data);
-                        if (article.title.toLowerCase().includes(query) || 
-                            article.content.toLowerCase().includes(query)) {
-                            article.id = file.replace('.json', '');
-                            articles.push(article);
-                        }
-                    } catch (err) {
-                        console.error('Error parsing article JSON:', err);
-                    }
-                    processed++;
-                }
-
-                if (processed === jsonFiles.length) {
-                    articles.sort((a, b) => {
-                        const aTitle = a.title.toLowerCase().includes(query);
-                        const bTitle = b.title.toLowerCase().includes(query);
-                        if (aTitle && !bTitle) return -1;
-                        if (!aTitle && bTitle) return 1;
-                        return new Date(b.createdAt) - new Date(a.createdAt);
-                    });
-                    res.json(articles);
-                }
-            });
-        });
-    });
 });
 
 // Get single article
@@ -443,14 +334,6 @@ app.put('/api/articles/:id', async (req, res) => {
         console.error('Error updating article:', error);
         res.status(500).json({ error: 'Failed to update article' });
     }
-});
-
-// Handle image upload
-app.post('/api/upload', upload.single('image'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-    res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 // Handle 404 errors - Must be after all other routes
