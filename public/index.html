@@ -64,6 +64,15 @@
         .search-button:hover {
             background: var(--primary-color-dark);
         }
+
+        .category-filter {
+            padding: 8px 16px;
+            border: 2px solid var(--primary-color);
+            border-radius: 20px;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -78,10 +87,10 @@
             <div class="header-actions">
                 <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
                 <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
-                <a href="#" id="recentArticlesBtn" class="nav-button">
+                <a href="#" id="recentArticles" class="nav-button">
                     <i class="fas fa-clock"></i> Letzte 30 Tage
                 </a>
-                <a href="#" id="randomArticleBtn" class="nav-button">
+                <a href="#" id="randomArticle" class="nav-button">
                     <i class="fas fa-random"></i> Zufälliger Artikel
                 </a>
                 <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
@@ -91,16 +100,24 @@
 
     <div class="search-container">
         <input type="text" class="search-input" id="searchInput" placeholder="Artikel suchen..." aria-label="Artikel suchen">
-        <button type="button" class="search-button" onclick="searchArticles()" aria-label="Artikel suchen">
+        <select id="categoryFilter" class="category-filter" aria-label="Nach Kategorie filtern">
+            <option value="">Alle Kategorien</option>
+            <option value="pflegetheorie">Pflegetheorie</option>
+            <option value="pflegepraxis">Pflegepraxis</option>
+            <option value="pflegedokumentation">Pflegedokumentation</option>
+            <option value="pflegeberatung">Pflegeberatung</option>
+        </select>
+        <button type="button" class="search-button" id="searchButton" aria-label="Artikel suchen">
             <i class="fas fa-search"></i>
         </button>
     </div>
 
     <main>
-        <div class="articles-section">
+        <div class="container">
             <div class="articles-header">
                 <h2>Alle Artikel</h2>
                 <div class="articles-filter">
+                    <label for="categoryFilter" class="visually-hidden">Kategorien filtern</label>
                     <select id="categoryFilter">
                         <option value="">Alle Kategorien</option>
                         <option value="pflegetheorie">Pflegetheorie</option>
@@ -110,9 +127,7 @@
                     </select>
                 </div>
             </div>
-            <div class="article-grid" id="articleGrid">
-                <!-- Articles will be loaded here -->
-            </div>
+            <div id="articles" class="articles-grid"></div>
         </div>
     </main>
 
@@ -121,20 +136,21 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Get elements
-            const recentArticlesBtn = document.getElementById('recentArticlesBtn');
-            const randomArticleBtn = document.getElementById('randomArticleBtn');
+            const recentArticles = document.getElementById('recentArticles');
+            const randomArticle = document.getElementById('randomArticle');
             const searchInput = document.getElementById('searchInput');
+            const searchButton = document.getElementById('searchButton');
 
             // Add event listeners
-            if (recentArticlesBtn) {
-                recentArticlesBtn.onclick = function() {
+            if (recentArticles) {
+                recentArticles.onclick = function() {
                     loadRecentArticles();
                     return false;
                 };
             }
 
-            if (randomArticleBtn) {
-                randomArticleBtn.onclick = function() {
+            if (randomArticle) {
+                randomArticle.onclick = function() {
                     loadRandomArticle();
                     return false;
                 };
@@ -151,6 +167,12 @@
                     if (e.key === 'Enter') {
                         searchArticles();
                     }
+                });
+            }
+
+            if (searchButton) {
+                searchButton.addEventListener('click', function() {
+                    searchArticles();
                 });
             }
         });

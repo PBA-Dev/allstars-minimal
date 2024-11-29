@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 require('dotenv').config();
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -20,155 +21,75 @@ app.use(express.json({
 }));
 
 // CORS middleware for development
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+app.use(cors());
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // In-memory storage (replace with MongoDB later)
 let articles = [];
 let articleHistory = {};
 
-// Initialize test data if no articles exist
-async function initializeTestData() {
-    const testArticles = [
-        {
-            _id: '1',
-            title: 'Grundpflege',
-            content: '<h2>Grundpflege - Basis der Pflegeversorgung</h2><p>Die Grundpflege umfasst alle grundlegenden pflegerischen Maßnahmen, die für die tägliche Versorgung eines Pflegebedürftigen notwendig sind.</p><h3>Wichtige Aspekte der Grundpflege:</h3><ul><li>Körperpflege</li><li>Ernährung</li><li>Mobilität</li><li>Prophylaxen</li></ul>',
-            author: 'Maria Schmidt',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '2',
-            title: 'Dekubitusprophylaxe',
-            content: '<h2>Dekubitusprophylaxe in der Pflege</h2><p>Die Dekubitusprophylaxe ist eine wichtige präventive Maßnahme zur Vermeidung von Druckgeschwüren.</p><h3>Kernelemente:</h3><ul><li>Regelmäßige Positionswechsel</li><li>Druckentlastung</li><li>Hautpflege</li><li>Ernährungsoptimierung</li></ul>',
-            author: 'Thomas Weber',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '3',
-            title: 'Medikamentenmanagement',
-            content: '<h2>Sicheres Medikamentenmanagement</h2><p>Das korrekte Management von Medikamenten ist ein kritischer Aspekt der professionellen Pflege.</p><h3>Wichtige Aspekte:</h3><ul><li>Die 5 R-Regel</li><li>Dokumentation</li><li>Nebenwirkungsbeobachtung</li><li>Interaktionskontrolle</li></ul>',
-            author: 'Julia Bauer',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '4',
-            title: 'Wundversorgung',
-            content: '<h2>Professionelle Wundversorgung</h2><p>Die fachgerechte Wundversorgung ist essentiell für die Heilung und Prävention von Komplikationen.</p><h3>Grundprinzipien:</h3><ul><li>Wundbeurteilung</li><li>Wundreinigung</li><li>Verbandwechsel</li><li>Dokumentation</li></ul>',
-            author: 'Stefan Müller',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '5',
-            title: 'Sturzprophylaxe',
-            content: '<h2>Sturzprophylaxe im Pflegealltag</h2><p>Die Sturzprophylaxe ist ein wichtiger Bestandteil der präventiven Pflege, besonders bei älteren Menschen.</p><h3>Maßnahmen:</h3><ul><li>Umgebungsanpassung</li><li>Bewegungsförderung</li><li>Hilfsmittelversorgung</li><li>Medikamentenüberprüfung</li></ul>',
-            author: 'Anna Koch',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '6',
-            title: 'Palliativpflege',
-            content: '<h2>Grundlagen der Palliativpflege</h2><p>Die Palliativpflege fokussiert sich auf die Verbesserung der Lebensqualität von Menschen mit unheilbaren Erkrankungen.</p><h3>Schwerpunkte:</h3><ul><li>Schmerzmanagement</li><li>Symptomkontrolle</li><li>Psychosoziale Betreuung</li><li>Angehörigenbegleitung</li></ul>',
-            author: 'Lisa Wagner',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '7',
-            title: 'Ernährungsmanagement',
-            content: '<h2>Ernährungsmanagement in der Pflege</h2><p>Eine bedarfsgerechte Ernährung ist fundamental für die Gesundheit und Genesung.</p><h3>Kernaspekte:</h3><ul><li>Ernährungsscreening</li><li>Kostformen</li><li>Unterstützung bei der Nahrungsaufnahme</li><li>Flüssigkeitsmanagement</li></ul>',
-            author: 'Michael Schneider',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '8',
-            title: 'Hygiene in der Pflege',
-            content: '<h2>Hygienemaßnahmen im Pflegealltag</h2><p>Hygiene ist ein zentraler Aspekt der Pflegequalität und Infektionsprävention.</p><h3>Wichtige Bereiche:</h3><ul><li>Händehygiene</li><li>Flächendesinfektion</li><li>Schutzausrüstung</li><li>Abfallmanagement</li></ul>',
-            author: 'Petra Hoffmann',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '9',
-            title: 'Pflegedokumentation',
-            content: '<h2>Professionelle Pflegedokumentation</h2><p>Die Pflegedokumentation ist ein wichtiges Instrument zur Qualitätssicherung und rechtlichen Absicherung.</p><h3>Bestandteile:</h3><ul><li>Pflegeanamnese</li><li>Pflegeplanung</li><li>Leistungsnachweis</li><li>Pflegeberichte</li></ul>',
-            author: 'Markus Fischer',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        },
-        {
-            _id: '10',
-            title: 'Schmerzmanagement',
-            content: '<h2>Professionelles Schmerzmanagement</h2><p>Ein effektives Schmerzmanagement ist essentiell für die Lebensqualität der Patienten.</p><h3>Wichtige Aspekte:</h3><ul><li>Schmerzerfassung</li><li>Schmerztherapie</li><li>Nichtmedikamentöse Maßnahmen</li><li>Dokumentation</li></ul>',
-            author: 'Sarah Meyer',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        }
-    ];
-
-    const testHistory = {};
-    testArticles.forEach(article => {
-        testHistory[article._id] = [{
-            editor: article.author,
-            date: article.createdAt,
-            action: 'created',
-            title: article.title
-        }];
-    });
-
-    return { articles: testArticles, history: testHistory };
-}
-
-// Load articles and history from files
+// Load articles from individual files
 async function loadData() {
     try {
-        const articlesData = await fs.readFile('articles.json', 'utf8');
-        articles = JSON.parse(articlesData);
-    } catch (error) {
-        console.log('No existing articles found, initializing with test data...');
-        const testData = await initializeTestData();
-        articles = testData.articles;
-        articleHistory = testData.history;
-        await saveData();
-    }
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        
+        // Create articles directory if it doesn't exist
+        await fs.mkdir(articlesDir, { recursive: true });
+        
+        // Read existing articles
+        const files = await fs.readdir(articlesDir);
+        const jsonFiles = files.filter(file => file.endsWith('.json') && file !== 'article_history.json');
+        
+        articles = [];
+        for (const file of jsonFiles) {
+            try {
+                const articleData = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                const article = JSON.parse(articleData);
+                article._id = file.replace('.json', ''); // Use filename as ID
+                articles.push(article);
+            } catch (error) {
+                console.error(`Error reading article file ${file}:`, error);
+            }
+        }
 
-    if (!articles || articles.length === 0) {
-        const testData = await initializeTestData();
-        articles = testData.articles;
-        articleHistory = testData.history;
-        await saveData();
-    }
-
-    try {
-        const historyData = await fs.readFile('article_history.json', 'utf8');
-        articleHistory = JSON.parse(historyData);
-    } catch (error) {
-        console.log('No existing history found, starting with empty object');
-        if (!articleHistory) {
+        // Load article history
+        try {
+            const historyData = await fs.readFile(path.join(articlesDir, 'article_history.json'), 'utf8');
+            articleHistory = JSON.parse(historyData);
+        } catch (error) {
+            console.log('No existing history found, starting with empty object');
             articleHistory = {};
         }
+
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        articles = [];
+        articleHistory = {};
     }
 }
 
-// Save articles and history to files
+// Save articles to individual files
 async function saveData() {
     try {
-        await fs.writeFile('articles.json', JSON.stringify(articles, null, 2));
-        await fs.writeFile('article_history.json', JSON.stringify(articleHistory, null, 2));
+        const articlesDir = path.join(__dirname, 'public', 'articles');
+        await fs.mkdir(articlesDir, { recursive: true });
+
+        // Save each article to its own file
+        for (const article of articles) {
+            const fileName = `${article._id}.json`;
+            await fs.writeFile(
+                path.join(articlesDir, fileName),
+                JSON.stringify(article, null, 2)
+            );
+        }
+
+        // Save history
+        await fs.writeFile(
+            path.join(articlesDir, 'article_history.json'),
+            JSON.stringify(articleHistory, null, 2)
+        );
     } catch (error) {
         console.error('Error saving data:', error);
     }
@@ -177,12 +98,21 @@ async function saveData() {
 // Initialize data
 loadData();
 
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
-
 // API Routes
 app.get('/api/articles', (req, res) => {
-    res.json(articles);
+    try {
+        const category = req.query.category?.toLowerCase();
+        if (category) {
+            const filteredArticles = articles.filter(article => 
+                article.category?.toLowerCase() === category
+            );
+            return res.json(filteredArticles);
+        }
+        res.json(articles);
+    } catch (error) {
+        console.error('Error getting articles:', error);
+        res.status(500).json({ error: 'Failed to get articles', details: error.message });
+    }
 });
 
 app.get('/api/articles/:id', (req, res) => {
@@ -209,11 +139,57 @@ app.get('/api/random-article', (req, res) => {
     res.json(articles[randomIndex]);
 });
 
+app.get('/api/search', (req, res) => {
+    try {
+        const query = req.query.q?.toLowerCase() || '';
+        if (!query) {
+            return res.json(articles);
+        }
+
+        const results = articles.filter(article => {
+            const titleMatch = article.title?.toLowerCase().includes(query);
+            const contentMatch = article.content?.toLowerCase().includes(query);
+            return titleMatch || contentMatch;
+        });
+
+        res.json(results);
+    } catch (error) {
+        console.error('Error searching articles:', error);
+        res.status(500).json({ error: 'Failed to search articles', details: error.message });
+    }
+});
+
+app.get('/api/random', (req, res) => {
+    try {
+        if (articles.length === 0) {
+            return res.status(404).json({ error: 'No articles found' });
+        }
+        const randomIndex = Math.floor(Math.random() * articles.length);
+        const article = articles[randomIndex];
+        res.json(article);
+    } catch (error) {
+        console.error('Error getting random article:', error);
+        res.status(500).json({ error: 'Failed to get random article' });
+    }
+});
+
+app.get('/api/recent', (req, res) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentArticles = articles.filter(article => {
+        const articleDate = new Date(article.updatedAt || article.createdAt);
+        return articleDate >= thirtyDaysAgo;
+    });
+    
+    res.json(recentArticles);
+});
+
 app.post('/api/articles', async (req, res) => {
     try {
-        const { title, content, author } = req.body;
-        if (!title || !content || !author) {
-            return res.status(400).json({ error: 'Title, content, and author are required' });
+        const { title, content, author, category } = req.body;
+        if (!title || !content || !author || !category) {
+            return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
         const newArticle = {
@@ -221,21 +197,14 @@ app.post('/api/articles', async (req, res) => {
             title,
             content,
             author,
+            category,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
         articles.push(newArticle);
-        
-        // Initialize history for new article
-        articleHistory[newArticle._id] = [{
-            editor: author,
-            date: new Date().toISOString(),
-            action: 'created',
-            title: title
-        }];
-
         await saveData();
+
         res.status(201).json(newArticle);
     } catch (error) {
         console.error('Error creating article:', error);
@@ -245,9 +214,9 @@ app.post('/api/articles', async (req, res) => {
 
 app.put('/api/articles/:id', async (req, res) => {
     try {
-        const { title, content, editor } = req.body;
-        if (!title || !content || !editor) {
-            return res.status(400).json({ error: 'Title, content, and editor name are required' });
+        const { title, content, author, category } = req.body;
+        if (!title || !content || !author || !category) {
+            return res.status(400).json({ error: 'Title, content, author, and category are required' });
         }
 
         const article = articles.find(a => a._id === req.params.id);
@@ -261,7 +230,7 @@ app.put('/api/articles/:id', async (req, res) => {
         }
         
         articleHistory[article._id].push({
-            editor,
+            editor: author,
             date: new Date().toISOString(),
             action: 'edited',
             title: title,
@@ -271,8 +240,9 @@ app.put('/api/articles/:id', async (req, res) => {
         // Update the article
         article.title = title;
         article.content = content;
+        article.author = author;
+        article.category = category;
         article.updatedAt = new Date().toISOString();
-        article.lastEditor = editor;
 
         await saveData();
         res.json(article);

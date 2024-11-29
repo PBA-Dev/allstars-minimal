@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neuer Artikel - AllstarsWiki</title>
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/css/styles.css">
     <style>
         .create-form {
@@ -24,7 +25,7 @@
             font-weight: 500;
         }
         
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 8px;
             border: 1px solid var(--border-color);
@@ -49,7 +50,6 @@
             background-color: var(--primary-color-hover);
         }
     </style>
-    
 </head>
 <body>
     <header class="wiki-header">
@@ -57,16 +57,15 @@
             <div class="logo">
                 <h1 class="colored-title">
                     All<span style="color: #ff0606;">s</span><span style="color: #f27326;">t</span><span style="color: #fcb11d;">a</span><span style="color: #06a454;">r</span><span style="color: #06bafd;">s</span>&nbsp;Wiki
-                    
                 </h1>
             </div>
             <div class="header-actions">
                 <a href="/" class="nav-button"><i class="fas fa-home"></i> Startseite</a>
                 <a href="/create" class="nav-button"><i class="fas fa-plus"></i> Neuer Artikel</a>
-                <a href="#" id="recentArticlesBtn" class="nav-button">
+                <a href="#" id="recentArticles" class="nav-button">
                     <i class="fas fa-clock"></i> Letzte 30 Tage
                 </a>
-                <a href="#" id="randomArticleBtn" class="nav-button">
+                <a href="#" id="randomArticle" class="nav-button">
                     <i class="fas fa-random"></i> Zufälliger Artikel
                 </a>
                 <a href="/help" class="nav-button"><i class="fas fa-question-circle"></i> Hilfe</a>
@@ -76,31 +75,39 @@
     <main>
         <div class="container">
             <h1>Neuer Artikel</h1>
-            <form id="createForm" class="create-form">
+            <form id="article-form" onsubmit="saveArticle(); return false;">
                 <div class="form-group">
                     <label for="title">Titel:</label>
                     <input type="text" id="title" name="title" required>
                 </div>
                 <div class="form-group">
-                    <label for="author">Autor:</label>
-                    <input type="text" id="author" name="author" required>
+                    <label for="editor-name">Autor:</label>
+                    <input type="text" id="editor-name" name="editor-name" required>
                 </div>
                 <div class="form-group">
-                    <label for="editor-container">Inhalt:</label>
-                    <div id="editor-container" style="height: 400px;"></div>
+                    <label for="category">Kategorie:</label>
+                    <select id="category" name="category" required>
+                        <option value="">Kategorie auswählen</option>
+                        <option value="pflegetheorie">Pflegetheorie</option>
+                        <option value="pflegepraxis">Pflegepraxis</option>
+                        <option value="pflegedokumentation">Pflegedokumentation</option>
+                        <option value="pflegeberatung">Pflegeberatung</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editor">Inhalt:</label>
+                    <div id="editor-container"></div>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="read-more-button">
                         <i class="fas fa-save"></i> Artikel speichern
                     </button>
+                    <a href="/" class="btn btn-secondary">Abbrechen</a>
                 </div>
             </form>
         </div>
     </main>
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/js/wiki.js"></script>
-    <script>
-        initializeCreateForm();
-    </script>
 </body>
 </html>

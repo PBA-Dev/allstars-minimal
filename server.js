@@ -9,9 +9,32 @@ const app = express();
 const port = 3000;
 const productionDomain = 'https://wiki.optimumpflege.de';
 
+// Routes for serving HTML pages - Must be before API routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/edit/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'edit.html'));
+});
+
+app.get('/create', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'edit.html'));
+});
+
+app.get('/article/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/help', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'help.html'));
+});
+
 // Middleware
 app.use(express.json());
-app.use(express.static('public'));
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Add CORS headers for production
 app.use((req, res, next) => {
@@ -423,25 +446,9 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
     res.json({ url: `/uploads/${req.file.filename}` });
 });
 
-// Serve static files and handle routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/create', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'create.html'));
-});
-
-app.get('/article/:id', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'article.html'));
-});
-
-app.get('/edit/:id', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'edit.html'));
-});
-
-app.get('/help', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'help.html'));
+// Handle 404 errors - Must be after all other routes
+app.use((req, res) => {
+    res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(port, '0.0.0.0', () => {

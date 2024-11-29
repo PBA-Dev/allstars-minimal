@@ -1,32 +1,443 @@
-// Initialize Quill editor
-let quill = null;
+// Global variable for Quill editor
+let quill;
 
-function initializeQuill() {
-    const options = {
+// Initialize Quill editor with default options
+function initializeQuill(containerId) {
+    quill = new Quill(containerId, {
         theme: 'snow',
+        placeholder: 'Schreiben Sie hier Ihren Artikel...',
         modules: {
             toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
+                // Text formatting
+                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                [{ 'font': [] }],
+                [{ 'size': ['small', false, 'large', 'huge'] }],
+                
+                // Text styling
                 ['bold', 'italic', 'underline', 'strike'],
                 [{ 'color': [] }, { 'background': [] }],
+                
+                // Text alignment
                 [{ 'align': [] }],
+                
+                // Lists and indentation
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'script': 'sub'}, { 'script': 'super' }],
                 [{ 'indent': '-1'}, { 'indent': '+1' }],
+                
+                // Special formatting
+                [{ 'script': 'sub'}, { 'script': 'super' }],
                 ['blockquote', 'code-block'],
-                ['link', 'image'],
+                
+                // Media and links
+                ['link', 'image', 'video'],
+                
+                // Clear formatting
                 ['clean']
             ]
         }
-    };
+    });
+    
+    // Add image upload handler
+    const toolbar = quill.getModule('toolbar');
+    toolbar.addHandler('image', () => {
+        handleImageUpload(quill);
+    });
+    
+    return quill;
+}
 
-    // Only initialize if editor container exists
-    const container = document.getElementById('editor-container');
-    if (container) {
-        quill = new Quill('#editor-container', options);
-        return quill;
+// Save article (create or update)
+async function saveArticle() {
+    const articleId = window.location.pathname.split('/').pop();
+    const isNewArticle = articleId === 'create';
+    const form = document.getElementById('article-form');
+
+    const title = document.getElementById('title').value.trim();
+    const author = document.getElementById('editor-name').value.trim();
+    const category = document.getElementById('category').value;
+    const content = quill.root.innerHTML.trim();
+
+    if (!title || !author || !category || !content) {
+        alert('Bitte füllen Sie alle Pflichtfelder aus.');
+        return;
     }
-    return null;
+
+    try {
+        const response = await fetch(`/api/articles${isNewArticle ? '' : '/' + articleId}`, {
+            method: isNewArticle ? 'POST' : 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title, author, category, content })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to save article');
+        }
+
+        const result = await response.json();
+        window.location.href = `/article/${result._id}`;
+    } catch (error) {
+        console.error('Error saving article:', error);
+        alert('Fehler beim Speichern des Artikels: ' + error.message);
+    }
+}
+
+// Load random article
+async function loadRandomArticle() {
+    try {
+        const response = await fetch('/api/random');
+        if (!response.ok) {
+            throw new Error('Failed to get random article');
+        }
+        const article = await response.json();
+        if (article && article._id) {
+            window.location.href = `/article/${article._id}`;
+        } else {
+            throw new Error('Invalid article data received');
+        }
+    } catch (error) {
+        console.error('Error loading random article:', error);
+        alert('Fehler beim Laden eines zufälligen Artikels');
+    }
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Quill editor if we're on a page with an editor
+    const editorContainer = document.querySelector('#editor-container') || document.querySelector('#editor');
+    if (editorContainer) {
+        initializeQuill('#' + editorContainer.id);
+    }
+
+    // Load articles on home page
+    if (window.location.pathname === '/') {
+        loadArticles();
+
+        // Initialize category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', () => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput.value.trim()) {
+                    searchArticles(searchInput.value);
+                } else {
+                    loadArticles();
+                }
+            });
+        }
+    }
+
+    // Initialize event listeners
+    const randomArticleBtn = document.getElementById('randomArticle');
+    if (randomArticleBtn) {
+        randomArticleBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await loadRandomArticle();
+        });
+    }
+
+    // Initialize search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        let debounceTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(() => {
+                searchArticles(e.target.value);
+            }, 300);
+        });
+    }
+
+    // Initialize recent articles
+    const recentArticlesBtn = document.getElementById('recentArticles');
+    if (recentArticlesBtn) {
+        recentArticlesBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/api/recent');
+                if (!response.ok) throw new Error('Failed to get recent articles');
+                const articles = await response.json();
+                displayArticles(articles);
+            } catch (error) {
+                console.error('Error getting recent articles:', error);
+                alert('Fehler beim Laden der neuesten Artikel');
+            }
+        });
+    }
+
+    // Load article data if editing
+    const articleId = window.location.pathname.split('/').pop();
+    if (articleId !== 'create' && editorContainer) {
+        fetch(`/api/articles/${articleId}`)
+            .then(response => response.json())
+            .then(article => {
+                document.getElementById('title').value = article.title || '';
+                document.getElementById('editor-name').value = article.author || '';
+                document.getElementById('category').value = article.category || '';
+                quill.root.innerHTML = article.content || '';
+            })
+            .catch(error => {
+                console.error('Error loading article:', error);
+                alert('Fehler beim Laden des Artikels');
+            });
+    }
+});
+
+// Display articles in the grid
+async function displayArticles(articles) {
+    const container = document.querySelector('.container');
+    if (!container) return;
+
+    if (!Array.isArray(articles)) {
+        console.error('Expected articles to be an array, got:', typeof articles);
+        articles = [];
+    }
+
+    if (articles.length === 0) {
+        container.innerHTML = '<div class="no-articles">Keine Artikel gefunden.</div>';
+        return;
+    }
+
+    container.innerHTML = articles.map(article => `
+        <article class="article-preview">
+            <h2><a href="/article/${article._id}">${article.title}</a></h2>
+            <div class="article-meta">
+                <span>Autor: ${article.author || 'Unbekannt'}</span>
+                <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
+                <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+            </div>
+        </article>
+    `).join('');
+}
+
+// Load all articles
+async function loadArticles(category = '') {
+    try {
+        const categoryFilter = document.getElementById('categoryFilter');
+        const selectedCategory = categoryFilter ? categoryFilter.value : '';
+        
+        const response = await fetch('/api/articles');
+        if (!response.ok) {
+            throw new Error('Failed to load articles');
+        }
+        
+        let articles = await response.json();
+        
+        // Filter by category if selected
+        if (selectedCategory) {
+            articles = articles.filter(article => article.category === selectedCategory);
+        }
+        
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        alert('Fehler beim Laden der Artikel');
+    }
+}
+
+// Search articles
+async function searchArticles(query) {
+    if (!query.trim()) {
+        return loadArticles();
+    }
+
+    try {
+        const categoryFilter = document.getElementById('categoryFilter');
+        const selectedCategory = categoryFilter ? categoryFilter.value : '';
+        
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error('Failed to search articles');
+        }
+        
+        let articles = await response.json();
+        
+        // Filter by category if selected
+        if (selectedCategory) {
+            articles = articles.filter(article => article.category === selectedCategory);
+        }
+        
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error searching articles:', error);
+        alert('Fehler bei der Suche');
+    }
+}
+
+// Load single article
+async function loadArticle(articleId) {
+    try {
+        const response = await fetch(`/api/articles/${articleId}`);
+        if (!response.ok) {
+            throw new Error('Article not found');
+        }
+        const article = await response.json();
+        
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <article class="article-full">
+                <h1>${article.title}</h1>
+                <div class="article-meta">
+                    <span>Autor: ${article.author || 'Unbekannt'}</span>
+                    <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
+                    <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
+                    ${article.updatedAt ? `<span>Zuletzt bearbeitet: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>` : ''}
+                </div>
+                <div class="article-content">
+                    ${article.content}
+                </div>
+                <div class="article-actions">
+                    <a href="/edit/${article._id}" class="btn btn-primary">Bearbeiten</a>
+                    <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
+                </div>
+            </article>
+        `;
+    } catch (error) {
+        console.error('Error loading article:', error);
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Artikel nicht gefunden</h2>
+                    <p>Der angeforderte Artikel konnte nicht gefunden werden.</p>
+                    <a href="/" class="btn btn-primary">Zurück zur Übersicht</a>
+                </div>
+            `;
+        }
+    }
+}
+
+// Load recent articles
+async function loadRecentArticles() {
+    try {
+        const response = await fetch('/api/recent');
+        const articles = await response.json();
+        displayArticles(articles);
+    } catch (error) {
+        console.error('Error loading recent articles:', error);
+    }
+}
+
+// Initialize edit form
+function initializeEditForm(articleId) {
+    const form = document.getElementById('edit-article-form');
+    if (!form) return;
+
+    quill = initializeQuill('#editor');
+    if (!quill) {
+        console.error('Failed to initialize Quill editor');
+        return;
+    }
+
+    // Load the article data
+    fetch(`/api/articles/${articleId}`)
+        .then(response => response.json())
+        .then(article => {
+            form.querySelector('#title').value = article.title || '';
+            form.querySelector('#author').value = article.author || '';
+            form.querySelector('#category').value = article.category || '';
+            quill.root.innerHTML = article.content || '';
+        })
+        .catch(error => {
+            console.error('Error loading article:', error);
+            alert('Fehler beim Laden des Artikels');
+        });
+
+    form.onsubmit = async (event) => {
+        event.preventDefault();
+        
+        const title = form.querySelector('#title').value.trim();
+        const author = form.querySelector('#author').value.trim();
+        const category = form.querySelector('#category').value;
+        const content = quill.root.innerHTML.trim();
+
+        if (!title || !author || !category || !content) {
+            alert('Bitte füllen Sie alle Pflichtfelder aus.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/articles/${articleId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title,
+                    content,
+                    author,
+                    category
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to update article');
+            }
+
+            const article = await response.json();
+            window.location.href = `/article/${article._id}`;
+        } catch (error) {
+            console.error('Error updating article:', error);
+            alert('Fehler beim Aktualisieren des Artikels: ' + error.message);
+        }
+    };
+}
+
+// Initialize create form
+function initializeCreateForm() {
+    const form = document.getElementById('create-article-form');
+    if (!form) return;
+
+    quill = initializeQuill('#editor');
+    if (!quill) {
+        console.error('Failed to initialize Quill editor');
+        return;
+    }
+
+    form.onsubmit = async (event) => {
+        event.preventDefault();
+        
+        const title = form.querySelector('#title').value.trim();
+        const author = form.querySelector('#author').value.trim();
+        const category = form.querySelector('#category').value;
+        const content = quill.root.innerHTML.trim();
+
+        if (!title || !author || !category || !content) {
+            alert('Bitte füllen Sie alle Pflichtfelder aus.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/articles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title,
+                    content,
+                    author,
+                    category
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to create article');
+            }
+
+            const article = await response.json();
+            window.location.href = `/article/${article._id}`;
+        } catch (error) {
+            console.error('Error creating article:', error);
+            alert('Fehler beim Erstellen des Artikels: ' + error.message);
+        }
+    };
 }
 
 // Handle image upload
@@ -64,340 +475,22 @@ function handleImageUpload(quill) {
     };
 }
 
-// Initialize edit form
-function initializeEditForm(articleId) {
-    const quill = initializeQuill();
-    const form = document.getElementById('editForm');
-
-    // Add image upload handler
-    quill.getModule('toolbar').addHandler('image', () => {
-        handleImageUpload(quill);
-    });
-
-    // Load article data
-    fetch(`/api/articles/${articleId}`)
-        .then(response => response.json())
-        .then(article => {
-            document.getElementById('title').value = article.title || '';
-            document.getElementById('editor-name').value = article.author || '';
-            document.getElementById('categorySelect').value = article.category || '';
-            quill.root.innerHTML = article.content || '';
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Fehler beim Laden des Artikels');
-        });
-
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('title').value;
-        const author = document.getElementById('editor-name').value;
-        const content = quill.root.innerHTML;
-        const category = document.getElementById('categorySelect').value;
-
-        try {
-            const response = await fetch(`/api/articles/${articleId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ title, author, content, category })
-            });
-
-            if (response.ok) {
-                window.location.href = `/article/${articleId}`;
-            } else {
-                alert('Fehler beim Speichern des Artikels');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Fehler beim Speichern des Artikels');
-        }
-    };
-}
-
-// Initialize create form
-function initializeCreateForm() {
-    const quill = initializeQuill();
-    const form = document.getElementById('createForm');
-
-    // Add image upload handler
-    quill.getModule('toolbar').addHandler('image', () => {
-        handleImageUpload(quill);
-    });
-
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('title').value;
-        const author = document.getElementById('author').value;
-        const content = quill.root.innerHTML;
-        const category = document.getElementById('categorySelect').value;
-
-        try {
-            const response = await fetch('/api/articles', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ title, author, content, category })
-            });
-
-            if (response.ok) {
-                const article = await response.json();
-                window.location.href = `/article/${article.id}`;
-            } else {
-                alert('Fehler beim Speichern des Artikels');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Fehler beim Speichern des Artikels');
-        }
-    };
-}
-
-// Load articles with category filter
-async function loadArticles(category = '') {
-    try {
-        const url = category ? `/api/articles?category=${category}` : '/api/articles';
-        const response = await fetch(url);
-        const articles = await response.json();
-        displayArticles(articles);
-    } catch (error) {
-        console.error('Error loading articles:', error);
-    }
-}
-
-// Display articles in grid
-function displayArticles(articles) {
-    const grid = document.getElementById('articleGrid');
-    if (!grid) return;
-
-    grid.innerHTML = '';
-    articles.forEach(article => {
-        const card = document.createElement('div');
-        card.className = 'article-card';
-        card.innerHTML = `
-            <h3>${article.title}</h3>
-            <p class="article-meta">
-                <span class="author">${article.author}</span>
-                <span class="category">${article.category || 'Keine Kategorie'}</span>
-                <span class="date">${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-            </p>
-            <div class="article-actions">
-                <a href="/article/${article.id}" class="btn">Lesen</a>
-                <a href="/edit/${article.id}" class="btn">Bearbeiten</a>
-            </div>
-        `;
-        grid.appendChild(card);
-    });
-}
-
-// Handle category filter change
-document.addEventListener('DOMContentLoaded', () => {
-    const categoryFilter = document.getElementById('categoryFilter');
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', (e) => {
-            loadArticles(e.target.value);
-        });
-        // Initial load
-        loadArticles();
-    }
-
-    // Handle article editing
-    const articleId = window.location.pathname.split('/').pop();
-    const editor = document.getElementById('editor');
-    if (editor && articleId !== 'create') {
-        fetch(`/api/articles/${articleId}`)
-            .then(response => response.json())
-            .then(article => {
-                document.getElementById('titleInput').value = article.title || '';
-                document.getElementById('categorySelect').value = article.category || '';
-                quill.setContents(quill.clipboard.convert(article.content));
-            })
-            .catch(error => console.error('Error loading article:', error));
-    }
-});
-
-// Save article with category
-async function saveArticle() {
-    const title = document.getElementById('titleInput').value;
-    const content = quill.root.innerHTML;
-    const category = document.getElementById('categorySelect').value;
-    const author = document.getElementById('editor-name').value;
-
-    const articleId = window.location.pathname.split('/').pop();
-    const isNewArticle = articleId === 'create';
-
-    try {
-        const response = await fetch(`/api/articles${isNewArticle ? '' : '/' + articleId}`, {
-            method: isNewArticle ? 'POST' : 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                title,
-                content,
-                category,
-                author
-            }),
-        });
-
-        if (response.ok) {
-            const article = await response.json();
-            window.location.href = `/article/${article.id}`;
-        } else {
-            throw new Error('Failed to save article');
-        }
-    } catch (error) {
-        console.error('Error saving article:', error);
-        alert('Fehler beim Speichern des Artikels');
-    }
-}
-
-// Load articles for index page
-function loadArticlesIndex() {
-    const articleList = document.getElementById('articles');
-    if (!articleList) return;
-
-    fetch('/api/articles')
-        .then(response => response.json())
-        .then(articles => {
-            if (articles.length === 0) {
-                articleList.innerHTML = '<p>Keine Artikel vorhanden.</p>';
-                return;
-            }
-            
-            articleList.innerHTML = articles.map(article => `
-                <article class="article-preview">
-                    <h2><a href="/article/${article.id}">${article.title}</a></h2>
-                    <div class="article-meta">
-                        <span>Autor: ${article.author || 'Unbekannt'}</span>
-                        <span>Kategorie: ${article.category || 'Keine Kategorie'}</span>
-                        <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-                    </div>
-                    <div class="article-actions">
-                        <a href="/article/${article.id}" class="read-button"><i class="fas fa-book-open"></i> Lesen</a>
-                    </div>
-                </article>
-            `).join('');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            articleList.innerHTML = '<p>Fehler beim Laden der Artikel</p>';
-        });
-}
-
-// Load single article
-function loadArticle(articleId) {
-    const container = document.getElementById('article-content');
-    if (!container) return;
-
-    fetch(`/api/articles/${articleId}`)
-        .then(response => response.json())
-        .then(article => {
-            document.title = `AllstarsWiki - ${article.title}`;
-            container.innerHTML = `
-                <article class="article-full">
-                    <header class="article-header">
-                        <h1>${article.title}</h1>
-                        <div class="article-meta">
-                            <span>Autor: ${article.author || 'Unbekannt'}</span>
-                            <span>Kategorie: ${article.category || 'Keine Kategorie'}</span>
-                            <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-                            ${article.updatedAt ? `<span>Zuletzt bearbeitet: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>` : ''}
-                        </div>
-                    </header>
-                    <div class="article-content ql-editor">
-                        ${article.content || ''}
-                    </div>
-                    <div class="article-actions">
-                        <a href="/edit/${article.id}" class="edit-button">Bearbeiten</a>
-                        <a href="/" class="back-button">Zurück zur Übersicht</a>
-                    </div>
-                </article>
-            `;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            container.innerHTML = '<p>Fehler beim Laden des Artikels</p>';
-        });
-}
-
-// Load random article
-async function loadRandomArticle() {
-    try {
-        const response = await fetch('/api/articles/random');
-        if (response.ok) {
-            const article = await response.json();
-            window.location.href = `/article/${article.id}`;
-        } else {
-            alert('Fehler beim Laden eines zufälligen Artikels');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Fehler beim Laden eines zufälligen Artikels');
-    }
-}
-
-// Load recent articles
-async function loadRecentArticles() {
-    try {
-        const response = await fetch('/api/articles/recent');
-        if (response.ok) {
-            const articles = await response.json();
-            displayArticles(articles);
-        } else {
-            alert('Fehler beim Laden der letzten Artikel');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Fehler beim Laden der letzten Artikel');
-    }
-}
-
-// Search articles
-async function searchArticles() {
-    const searchInput = document.getElementById('searchInput');
-    const query = searchInput.value.trim();
-    
-    if (!query) {
-        alert('Bitte geben Sie einen Suchbegriff ein');
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/articles/search?q=${encodeURIComponent(query)}`);
-        if (response.ok) {
-            const articles = await response.json();
-            displayArticles(articles);
-        } else {
-            alert('Fehler bei der Suche');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Fehler bei der Suche');
-    }
-}
-
 // Add styles for category elements
 const style = document.createElement('style');
 style.textContent = `
-    .category-select {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 16px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-    .article-meta .category {
+    .category-tag {
         background: #e9ecef;
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 0.9em;
         margin: 0 8px;
     }
-    .articles-filter {
-        margin-bottom: 20px;
+    #category {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
     }
     #categoryFilter {
         padding: 8px;
@@ -407,20 +500,3 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
-
-// Initialize based on current page
-document.addEventListener('DOMContentLoaded', () => {
-    const path = window.location.pathname;
-    
-    if (path === '/') {
-        loadArticlesIndex();
-    } else if (path.startsWith('/article/')) {
-        const articleId = path.split('/').pop();
-        loadArticle(articleId);
-    } else if (path.startsWith('/edit/')) {
-        const articleId = path.split('/').pop();
-        initializeEditForm(articleId);
-    } else if (path === '/create') {
-        initializeCreateForm();
-    }
-});
