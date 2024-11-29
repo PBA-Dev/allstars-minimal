@@ -96,9 +96,25 @@
         </button>
     </div>
 
-    <div class="container">
-        <div id="articles" class="articles-grid"></div>
-    </div>
+    <main>
+        <div class="articles-section">
+            <div class="articles-header">
+                <h2>Alle Artikel</h2>
+                <div class="articles-filter">
+                    <select id="categoryFilter">
+                        <option value="">Alle Kategorien</option>
+                        <option value="pflegetheorie">Pflegetheorie</option>
+                        <option value="pflegepraxis">Pflegepraxis</option>
+                        <option value="pflegedokumentation">Pflegedokumentation</option>
+                        <option value="pflegeberatung">Pflegeberatung</option>
+                    </select>
+                </div>
+            </div>
+            <div class="article-grid" id="articleGrid">
+                <!-- Articles will be loaded here -->
+            </div>
+        </div>
+    </main>
 
     <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script src="/js/wiki.js"></script>

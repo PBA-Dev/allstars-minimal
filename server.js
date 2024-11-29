@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs').promises;
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
@@ -89,6 +89,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Die Zukunft der Pflegeberatung",
                 content: "<p>Die Digitalisierung eröffnet neue Möglichkeiten für die Pflegeberatung. Online-Seminare und digitale Plattformen erweitern die Reichweite und Effizienz der Beratungsdienste.</p>",
                 author: "Verena Campbell",
+                category: "Pflegeberatung",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             },
@@ -96,6 +97,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Pflegegrade und deren Bedeutung",
                 content: "<p>Eine detaillierte Erklärung der verschiedenen Pflegegrade und ihrer Bedeutung für die Versorgung.</p>",
                 author: "Verena Campbell",
+                category: "Pflegegrade",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             },
@@ -103,6 +105,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Unterstützung bei der häuslichen Pflege",
                 content: "<p>Praktische Tipps und Ressourcen für die häusliche Pflege von Angehörigen.</p>",
                 author: "Verena Campbell",
+                category: "Häusliche Pflege",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             },
@@ -110,6 +113,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Prävention und Gesundheitsförderung für Pflegebedürftige",
                 content: "<p>Wichtige Maßnahmen zur Prävention und Gesundheitsförderung in der Pflege.</p>",
                 author: "Verena Campbell",
+                category: "Prävention und Gesundheitsförderung",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             },
@@ -117,6 +121,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Selbsthilfegruppen für pflegende Angehörige",
                 content: "<p>Informationen über Selbsthilfegruppen und Unterstützungsnetzwerke für pflegende Angehörige.</p>",
                 author: "Verena Campbell",
+                category: "Selbsthilfegruppen",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             },
@@ -124,6 +129,7 @@ fs.readdir(articlesDir, (err, files) => {
                 title: "Pflegeversicherung – Was sie leistet und wie man sie nutzt",
                 content: "<p>Ein umfassender Überblick über die Leistungen der Pflegeversicherung und deren Nutzung.</p>",
                 author: "Verena Campbell",
+                category: "Pflegeversicherung",
                 createdAt: "2024-11-27T09:07:59.509Z",
                 updatedAt: "2024-11-27T09:07:59.509Z"
             }
@@ -162,57 +168,38 @@ if (!fs.existsSync(uploadsDir)) {
 
 // API endpoints
 // Get all articles
-app.get('/api/articles', (req, res) => {
-    console.log('Reading articles directory...');
-    fs.readdir(articlesDir, (err, files) => {
-        if (err) {
-            console.error('Error reading articles directory:', err);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
+app.get('/api/articles', async (req, res) => {
+    try {
+        const { category } = req.query;
+        const files = await fs.readdir(articlesDir);
+        console.log('Articles directory contents:', files);
 
-        // Filter only JSON files
-        const jsonFiles = files.filter(file => file.endsWith('.json'));
-        console.log('Found JSON files:', jsonFiles);
-        
-        const articles = [];
-        let processed = 0;
+        const articles = await Promise.all(
+            files
+                .filter(file => file.endsWith('.json'))
+                .map(async file => {
+                    const content = await fs.readFile(path.join(articlesDir, file), 'utf8');
+                    const article = JSON.parse(content);
+                    return {
+                        id: file.replace('.json', ''),
+                        ...article
+                    };
+                })
+        );
 
-        // Process each JSON file
-        jsonFiles.forEach(file => {
-            const filePath = path.join(articlesDir, file);
-            console.log('Reading file:', filePath);
-            
-            fs.readFile(filePath, 'utf8', (err, data) => {
-                if (err) {
-                    console.error('Error reading article file:', err);
-                    processed++;
-                } else {
-                    try {
-                        const article = JSON.parse(data);
-                        article.id = file.replace('.json', '');
-                        articles.push(article);
-                        console.log('Successfully parsed article:', article.title);
-                    } catch (err) {
-                        console.error('Error parsing article JSON:', err);
-                    }
-                    processed++;
-                }
+        // Filter by category if specified
+        const filteredArticles = category
+            ? articles.filter(article => article.category === category)
+            : articles;
 
-                if (processed === jsonFiles.length) {
-                    // Sort articles by creation date, newest first
-                    articles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    console.log('Sending articles response, count:', articles.length);
-                    res.json(articles);
-                }
-            });
-        });
+        // Sort by creation date (newest first)
+        filteredArticles.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // If no JSON files found, return empty array
-        if (jsonFiles.length === 0) {
-            console.log('No JSON files found');
-            res.json([]);
-        }
-    });
+        res.json(filteredArticles);
+    } catch (error) {
+        console.error('Error getting articles:', error);
+        res.status(500).json({ error: 'Failed to get articles' });
+    }
 });
 
 // Get random article
@@ -371,62 +358,52 @@ app.get('/api/articles/:id', (req, res) => {
 });
 
 // Create new article
-app.post('/api/articles', (req, res) => {
-    const { title, author, content } = req.body;
-    const id = uuidv4();
-    const article = {
-        title,
-        author,
-        content,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
+app.post('/api/articles', async (req, res) => {
+    try {
+        const { title, content, author, category } = req.body;
+        const articleId = Date.now().toString();
+        const article = {
+            title,
+            content,
+            author,
+            category,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
 
-    fs.writeFile(
-        path.join(articlesDir, `${id}.json`),
-        JSON.stringify(article, null, 2),
-        err => {
-            if (err) {
-                console.error('Error creating article:', err);
-                return res.status(500).json({ error: 'Failed to create article' });
-            }
-            article.id = id;
-            res.status(201).json(article);
-        }
-    );
+        await fs.writeFile(path.join(articlesDir, `${articleId}.json`), JSON.stringify(article, null, 2));
+        console.log(`Created new article: ${articleId}`);
+        res.json({ id: articleId, ...article });
+    } catch (error) {
+        console.error('Error creating article:', error);
+        res.status(500).json({ error: 'Failed to create article' });
+    }
 });
 
 // Update article
-app.put('/api/articles/:id', (req, res) => {
-    const { title, author, content } = req.body;
-    const articlePath = path.join(articlesDir, `${req.params.id}.json`);
+app.put('/api/articles/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, content, author, category } = req.body;
+        const articlePath = path.join(articlesDir, `${id}.json`);
+        
+        const existingArticle = JSON.parse(await fs.readFile(articlePath, 'utf8'));
+        const updatedArticle = {
+            ...existingArticle,
+            title,
+            content,
+            author,
+            category,
+            updatedAt: new Date().toISOString()
+        };
 
-    fs.readFile(articlePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error('Error reading article:', err);
-            return res.status(404).json({ error: 'Article not found' });
-        }
-
-        try {
-            const article = JSON.parse(data);
-            article.title = title;
-            article.author = author;
-            article.content = content;
-            article.updatedAt = new Date().toISOString();
-
-            fs.writeFile(articlePath, JSON.stringify(article, null, 2), err => {
-                if (err) {
-                    console.error('Error updating article:', err);
-                    return res.status(500).json({ error: 'Failed to update article' });
-                }
-                article.id = req.params.id;
-                res.json(article);
-            });
-        } catch (err) {
-            console.error('Error parsing article JSON:', err);
-            res.status(500).json({ error: 'Internal server error' });
-        }
-    });
+        await fs.writeFile(articlePath, JSON.stringify(updatedArticle, null, 2));
+        console.log(`Updated article: ${id}`);
+        res.json(updatedArticle);
+    } catch (error) {
+        console.error('Error updating article:', error);
+        res.status(500).json({ error: 'Failed to update article' });
+    }
 });
 
 // Handle image upload
