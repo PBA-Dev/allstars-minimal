@@ -95,13 +95,15 @@ async function saveArticle() {
             throw new Error(responseData.error || 'Failed to save article');
         }
 
-        if (!responseData._id) {
-            console.error('Response missing _id:', responseData);
+        // Handle both id and _id formats
+        const articleID = responseData._id || responseData.id;
+        if (!articleID) {
+            console.error('Response missing both id and _id:', responseData);
             throw new Error('Invalid server response: missing article ID');
         }
 
-        console.log('Successfully saved article. Redirecting to:', `/article/${responseData._id}`);
-        window.location.href = `/article/${responseData._id}`;
+        console.log('Successfully saved article. Redirecting to:', `/article/${articleID}`);
+        window.location.href = `/article/${articleID}`;
     } catch (error) {
         console.error('Error saving article:', error);
         alert('Fehler beim Speichern des Artikels: ' + error.message);
@@ -300,51 +302,52 @@ async function searchArticles(query) {
 
 // Load single article
 async function loadArticle(articleId) {
+    console.log('Loading article:', articleId);
     try {
-        console.log('Loading article:', articleId);
         const response = await fetch(`/api/articles/${articleId}`);
-        if (!response.ok) {
-            throw new Error('Article not found');
-        }
-        const article = await response.json();
-        console.log('Article loaded:', article);
-        
-        const container = document.querySelector('.container');
-        if (!container) {
-            console.error('Container not found');
-            return;
+        const responseText = await response.text();
+        console.log('Raw article response:', responseText);
+
+        let article;
+        try {
+            article = JSON.parse(responseText);
+            console.log('Parsed article data:', article);
+        } catch (e) {
+            console.error('Failed to parse article response as JSON:', e);
+            throw new Error('Server returned invalid JSON');
         }
 
-        container.innerHTML = `
-            <article class="article-full">
-                <h1>${article.title}</h1>
-                <div class="article-meta">
-                    <span>Autor: ${article.author || 'Unbekannt'}</span>
-                    <span class="category-tag">${article.category || 'Keine Kategorie'}</span>
-                    <span>Erstellt: ${new Date(article.createdAt).toLocaleDateString('de-DE')}</span>
-                    ${article.updatedAt ? `<span>Zuletzt bearbeitet: ${new Date(article.updatedAt).toLocaleDateString('de-DE')}</span>` : ''}
-                </div>
-                <div class="article-content">
-                    ${article.content}
-                </div>
-                <div class="article-actions">
-                    <a href="/edit/${article._id}" class="btn btn-primary">Bearbeiten</a>
-                    <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
-                </div>
-            </article>
-        `;
+        if (!response.ok) {
+            throw new Error(article.error || 'Article not found');
+        }
+
+        // Handle both id and _id formats
+        const id = article._id || article.id;
+        if (!id) {
+            console.error('Article response missing both id and _id:', article);
+            throw new Error('Invalid article data: missing ID');
+        }
+
+        document.getElementById('article-title').textContent = article.title;
+        document.getElementById('article-author').textContent = article.author;
+        document.getElementById('article-date').textContent = new Date(article.createdAt).toLocaleDateString('de-DE');
+        document.getElementById('article-content').innerHTML = article.content;
+
+        // Update edit link
+        const editLink = document.getElementById('edit-link');
+        if (editLink) {
+            editLink.href = `/edit/${id}`;
+        }
+
     } catch (error) {
         console.error('Error loading article:', error);
-        const container = document.querySelector('.container');
-        if (container) {
-            container.innerHTML = `
-                <div class="error-message">
-                    <h2>Fehler beim Laden des Artikels</h2>
-                    <p>${error.message}</p>
-                    <a href="/" class="btn btn-secondary">Zurück zur Übersicht</a>
-                </div>
-            `;
-        }
+        document.getElementById('article-container').innerHTML = `
+            <div class="error-message">
+                <h2>Fehler beim Laden des Artikels</h2>
+                <p>${error.message}</p>
+                <a href="/" class="btn btn-primary">Zurück zur Übersicht</a>
+            </div>
+        `;
     }
 }
 
