@@ -454,7 +454,7 @@ function initializeCreateForm() {
 }
 
 // Handle image upload
-function handleImageUpload(quill) {
+async function handleImageUpload(quill) {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/*');
@@ -462,28 +462,28 @@ function handleImageUpload(quill) {
 
     input.onchange = async () => {
         const file = input.files[0];
-        if (file) {
-            const formData = new FormData();
-            formData.append('image', file);
+        if (!file) return;
 
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
+        const formData = new FormData();
+        formData.append('image', file);
 
-                if (response.ok) {
-                    const { url } = await response.json();
-                    const range = quill.getSelection(true);
-                    quill.insertEmbed(range.index, 'image', url);
-                } else {
-                    console.error('Upload failed:', await response.text());
-                    alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
-                }
-            } catch (error) {
-                console.error('Upload error:', error);
-                alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload image');
             }
+
+            const result = await response.json();
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', result.url);
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert('Bildupload fehlgeschlagen. Bitte versuchen Sie es erneut.');
         }
     };
 }

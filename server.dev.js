@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs').promises;
 require('dotenv').config();
 const cors = require('cors');
+const multer = require('multer');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -111,18 +112,80 @@ app.post('/api/articles', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
 
-        // Save to file
+        // Ensure articles directory exists
         const articlesDir = path.join(__dirname, 'public', 'articles');
-        await fs.writeFile(
-            path.join(articlesDir, `${newArticle._id}.json`),
-            JSON.stringify(newArticle, null, 2)
-        );
+        try {
+            await fs.access(articlesDir);
+        } catch {
+            await fs.mkdir(articlesDir, { recursive: true });
+        }
 
+        // Save to file
+        const articlePath = path.join(articlesDir, `${newArticle._id}.json`);
+        await fs.writeFile(articlePath, JSON.stringify(newArticle, null, 2));
+
+        // Create uploads directory for images if it doesn't exist
+        const uploadsDir = path.join(__dirname, 'public', 'uploads');
+        try {
+            await fs.access(uploadsDir);
+        } catch {
+            await fs.mkdir(uploadsDir, { recursive: true });
+        }
+
+        console.log('Article saved successfully:', newArticle._id);
         res.status(201).json(newArticle);
     } catch (error) {
         console.error('Error creating article:', error);
         res.status(500).json({ error: 'Failed to create article' });
     }
+});
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadsDir = path.join(__dirname, 'public', 'uploads');
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: function (req, file, cb) {
+        // Accept images only
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+            return cb(new Error('Only image files are allowed!'), false);
+        }
+        cb(null, true);
+    }
+}).single('image');
+
+// Image upload endpoint
+app.post('/api/upload', (req, res) => {
+    upload(req, res, function (err) {
+        if (err) {
+            console.error('Error uploading file:', err);
+            return res.status(400).json({ 
+                error: err instanceof multer.MulterError 
+                    ? 'File too large (max 5MB)' 
+                    : err.message 
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Return the URL of the uploaded file
+        const fileUrl = `/uploads/${req.file.filename}`;
+        res.json({ url: fileUrl });
+    });
 });
 
 app.get('/api/articles/:id/history', (req, res) => {
